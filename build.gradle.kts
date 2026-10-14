@@ -105,6 +105,7 @@ dependencies {
     testImplementation(project(":arc-contracts-api"))
     testImplementation("ru.ruscrafting.arc:arc-core-paper-testing:2.7.22")
     testImplementation("ru.ruscrafting.arc:arc-core-paper-api:2.7.22")
+    testRuntimeOnly("ru.ruscrafting.arc:arc-core-metrics:2.7.22")
     testImplementation(platform("org.junit:junit-bom:6.0.3"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("io.kotest:kotest-runner-junit5:6.0.7")
