@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
+import org.bukkit.inventory.ItemStack
 import ru.arc.menu.MenuTemplateId
 import ru.arc.paper.menu.PaperMenuItemFactory
 import ru.arc.paper.menu.PaperMenuItemRenderContext
@@ -65,14 +66,14 @@ class ContractsMenuSchemaTest : StringSpec({
         for ((template, model) in listOf("contract-desk-previous" to 11009, "contract-desk-next" to 11008)) {
             val arrow = factory.create(configuration.template(MenuTemplateId.of(template)), PaperMenuItemRenderContext())
             arrow.type shouldBe Material.BLUE_STAINED_GLASS_PANE
-            arrow.itemMeta.customModelDataComponent.floats shouldBe listOf(model.toFloat())
+            arrow.legacyCustomModelData() shouldBe model
         }
         val filler = factory.create(
             configuration.template(MenuTemplateId.of("contract-desk-empty")),
             PaperMenuItemRenderContext(),
         )
         filler.type shouldBe Material.LIGHT_GRAY_STAINED_GLASS_PANE
-        filler.itemMeta.customModelDataComponent.floats shouldBe emptyList()
+        filler.legacyCustomModelData() shouldBe null
 
         val item = factory.create(
             configuration.template(MenuTemplateId.of("contract-desk-order")),
@@ -106,3 +107,6 @@ private fun loadContractsMenuConfiguration() = run {
         .use { source -> Files.copy(checkNotNull(source), target) }
     ContractsMenuSchema.load(root)
 }
+
+@Suppress("DEPRECATION")
+private fun ItemStack.legacyCustomModelData(): Int? = itemMeta.customModelData
