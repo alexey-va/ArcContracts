@@ -11,7 +11,7 @@ ARC shades the API once. ArcContracts consumes it as `compileOnly`; add-ons shou
 
 ## Build and verification
 
-Use JDK 25. Unit tests use the shared Paper test kit. Redis integration tests run against disposable services and require Docker. CI also builds separate Citizens test and crash-recovery fixture plugins; these fixtures are not part of the production JAR.
+Use JDK 25. Unit tests use the shared Paper test kit. Redis integration tests run against disposable services and require Docker. CI also builds separate Citizens test and crash-recovery fixture plugins; these fixtures are not part of the production JAR. `fixtureVersion` versions their immutable artifacts independently of `pluginVersion` and `contractsApiVersion`.
 
 ```bash
 ./gradlew test

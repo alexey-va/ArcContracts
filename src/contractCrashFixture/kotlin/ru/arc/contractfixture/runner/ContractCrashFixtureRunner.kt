@@ -1,34 +1,58 @@
-package ru.arc.contractfixture
+package ru.arc.contractfixture.runner
 
+import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.command.Command
+import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import org.bukkit.plugin.java.JavaPlugin
-import org.bukkit.persistence.PersistentDataType
 import org.bukkit.inventory.ItemStack
+import org.bukkit.persistence.PersistentDataType
+import org.bukkit.plugin.java.JavaPlugin
+import ru.arc.config.Config
+import ru.arc.config.ConfigManager
 import ru.arc.contracts.*
-import java.io.File
-import java.io.FileOutputStream
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.util.Properties
 import java.util.UUID
+import kotlin.coroutines.Continuation
 
-/** CI-only artifact. The production shadow JAR never includes this source set. */
-class ContractCrashFixturePlugin : JavaPlugin() {
+/** CI-only crash runner loaded below the ArcContracts plugin loader; never shipped in the production JAR. */
+class ContractCrashFixtureRunner(private val plugin: JavaPlugin) : Runnable, CommandExecutor, AutoCloseable {
     private data class Arm(val playerId: UUID, val phase: String)
 
     @Volatile private var armed: Arm? = null
     private lateinit var persistence: ContractSubmissionPersistence
     private lateinit var payment: ContractPaymentGateway
 
-    override fun onEnable() {
+    override fun run() {
         check(System.getenv("ARC_CONTRACT_CRASH_FIXTURE") == "1") { "Disposable crash fixture was not explicitly enabled" }
-        check(server.ip == "127.0.0.1" && !server.onlineMode) { "Crash fixture requires the loopback offline CI server" }
+        check(plugin.server.ip == "127.0.0.1" && !plugin.server.onlineMode) { "Crash fixture requires the loopback offline CI server" }
+        val arcContractsLoader = requireNotNull(Bukkit.getPluginManager().getPlugin("ArcContracts"))
+            .javaClass.classLoader
+        check(javaClass.classLoader !== arcContractsLoader) { "Fixture runner was not isolated from the ArcContracts plugin loader" }
+        check(ContractSubmissionCoordinator::class.java.classLoader === arcContractsLoader) {
+            "Contract implementation did not resolve from the ArcContracts plugin loader"
+        }
+        check(ConfigManager::class.java.classLoader === arcContractsLoader) {
+            "Arc core implementation did not resolve from the ArcContracts plugin loader"
+        }
+        check(Config::class.java.classLoader === arcContractsLoader) {
+            "Arc config implementation did not resolve from the ArcContracts plugin loader"
+        }
+        check(Continuation::class.java.classLoader === arcContractsLoader) {
+            "Kotlin coroutines API did not resolve from the ArcContracts plugin loader"
+        }
+        check(Unit::class.java.classLoader === arcContractsLoader) {
+            "Kotlin runtime did not resolve from the ArcContracts plugin loader"
+        }
         check(ContractsManager.currentViews().any { it.id == "e2e_stone" }) { "Synthetic contract missing" }
-        dataFolder.mkdirs()
+
+        plugin.dataFolder.mkdirs()
         val owner = ContractsManager::class.java.getDeclaredField("submissionCoordinator").apply { isAccessible = true }
         val original = requireNotNull(owner.get(ContractsManager)) as ContractSubmissionCoordinator
         persistence = port(original, "persistence")
@@ -78,10 +102,15 @@ class ContractCrashFixturePlugin : JavaPlugin() {
         // the coordinator, so the old player-inventory gateway hook cannot see
         // item removal on this public path.
         owner.set(ContractsManager, ContractSubmissionCoordinator(observedPersistence, inventory, observedPayment))
-        logger.info("CONTRACT_CRASH_FIXTURE_READY")
+        plugin.logger.info("CONTRACT_CRASH_FIXTURE_READY")
     }
 
-    override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
+    override fun onCommand(
+        sender: CommandSender,
+        command: Command,
+        label: String,
+        args: Array<out String>,
+    ): Boolean {
         val player = sender as? Player ?: return false
         if (!player.isOp || args.size != 2 || !args[1].matches(Regex("[a-z_]{1,40}"))) return false
         when (args[0]) {
@@ -95,7 +124,7 @@ class ContractCrashFixturePlugin : JavaPlugin() {
             }
             "snapshot" -> {
                 val records = persistence.journalRecords().filter { it.playerId == player.uniqueId.toString() }
-                val crashFile = File(dataFolder, "crashed.properties")
+                val crashFile = File(plugin.dataFolder, "crashed.properties")
                 val crash = Properties()
                 if (crashFile.isFile) crashFile.inputStream().use(crash::load)
                 val crashMatchesArm = armed?.let { it.playerId == player.uniqueId && it.phase == crash.getProperty("phase") } ?: true
@@ -126,6 +155,8 @@ class ContractCrashFixturePlugin : JavaPlugin() {
         return true
     }
 
+    override fun close() = Unit
+
     private fun haltAt(playerId: String, phase: String, submissionId: String) {
         val arm = armed ?: return
         if (arm.playerId.toString() != playerId || arm.phase != phase) return
@@ -139,7 +170,7 @@ class ContractCrashFixturePlugin : JavaPlugin() {
     }
 
     private fun writeProperties(name: String, values: Map<String, String>) {
-        FileOutputStream(File(dataFolder, "$name.properties")).use { out ->
+        FileOutputStream(File(plugin.dataFolder, "$name.properties")).use { out ->
             Properties().apply { putAll(values) }.store(out, "Synthetic contract crash fixture")
             out.fd.sync()
         }

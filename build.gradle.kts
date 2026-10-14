@@ -13,6 +13,7 @@ plugins {
 
 group = "ru.ruscrafting"
 version = providers.gradleProperty("pluginVersion").get()
+val fixtureVersion = providers.gradleProperty("fixtureVersion").get()
 description = "Standalone contract and season gameplay plugin for RusCrafting"
 
 jacoco {
@@ -232,7 +233,7 @@ publishing {
         create<MavenPublication>("contractTestFixture") {
             groupId = "ru.ruscrafting"
             artifactId = "ArcContractsContractTestFixture"
-            version = project.version.toString()
+            version = fixtureVersion
             artifact(contractTestFixtureJar)
             pom {
                 name.set("ArcContracts contract test fixture")
@@ -250,7 +251,7 @@ publishing {
         create<MavenPublication>("contractCrashFixture") {
             groupId = "ru.ruscrafting"
             artifactId = "ArcContractsContractCrashFixture"
-            version = project.version.toString()
+            version = fixtureVersion
             artifact(contractCrashFixtureJar)
             pom {
                 name.set("ArcContracts contract crash fixture")
