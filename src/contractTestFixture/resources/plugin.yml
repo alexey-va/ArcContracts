@@ -1,0 +1,5 @@
+name: ARCContractTestFixture
+version: 1.0
+main: ru.arc.contractfixture.ContractTestFixturePlugin
+api-version: '1.21'
+depend: [ArcContracts, Citizens, RedisEconomy]

@@ -1,0 +1,31 @@
+# Selection is opt-in and prospective; existing windows and rates are preserved.
+selection:
+  enabled: false
+  starts-at: "2026-09-13T21:00:00Z"
+  orders-per-group: 3
+
+# Economy V2 contracts remain in calibration until a complete post-hardening baseline.
+enabled: true
+mode: observe
+leader-server: spawn
+server-weekly-budget: "250000.00"
+
+# Resource submissions are authorized by a short-lived click session from one
+# of the public contract desks. The GUI/command cannot mint this session.
+submission-access:
+  radius: 4.5
+  session-ttl: 120s
+  routes:
+    "350": forge_orders
+    "367": bank_orders
+    "390": guild_orders
+    "439": food_orders
+
+# Resource orders use exact decimal base prices. Sales require a GUI quote on
+# rc_origin_spawn. Optional weekly-recurring renews at Monday 00:00 in
+# Europe/Moscow (Sunday 21:00 UTC) for an exact seven-day window;
+# dynamic-pricing prices each item from bounded weekly demand/supply.
+# Both options default false for existing fixed-window orders. Active window
+# policy is frozen in durable state; edits take effect on the next window.
+# Disabled/empty catalogs mint nothing and keep the public runtime read-only.
+orders: {}

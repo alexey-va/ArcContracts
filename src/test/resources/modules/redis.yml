@@ -1,0 +1,10 @@
+# Test override: Redis disabled so unit tests don't connect.
+enabled: false
+
+host: localhost
+port: 25001
+username: default
+password: ""
+
+server-name: test-server
+main-server: true

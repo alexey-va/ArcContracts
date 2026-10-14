@@ -1,0 +1,221 @@
+# Generic NPC contract GUI. NPC identity and copy are selected by contract group.
+defaults:
+  dialog:
+    source:
+      title: "<#f4d87a><bold>Источники заказов"
+      intro: "<#e8dfd2>Выберите, чьи заказы открыть. Общий список вынесен в отдельный пункт."
+      tooltip: "<#e8dfd2>Открыть заказы этого источника · открыто: <orders>."
+    catalog:
+      title: "<#f4d87a><bold>Книга заказов"
+      summary: "<#e8dfd2>Открыто <orders> заказов · можно сдать сейчас: <ready> · нужная партия уже в инвентаре: <with_items>.\nВыберите заказ — карточка покажет точные условия."
+      empty: "<#e8dfd2>Сейчас открытых заказов нет. Обновите книгу немного позже."
+      items-missing: "<#ff6b61>Не хватает: <missing> шт."
+      page-tooltip: "<#e8dfd2>Перейти к другой странице заказов."
+      refresh-tooltip: "<#e8dfd2>Проверить, появились ли новые заказы."
+    pagination:
+      previous: "Предыдущая страница"
+      next: "Следующая страница"
+    detail:
+      intro: "<#e8dfd2>Выберите количество ползунком. Точная выплата появится после проверки условий."
+      purpose: "<#e8dfd2>Ресурсы для поселения."
+      quantity-label: "<#ffffff>Количество"
+      continue-tooltip: "<#e8dfd2>Проверить выбранное количество и точную выплату."
+      changed: "<#ff6b61>Инвентарь или условия изменились. Выберите количество ещё раз."
+    confirm:
+      title: "<#f4d87a><bold>Подтверждение сдачи"
+      intro: "<#e8dfd2>Проверьте точное количество и выплату. Перед сдачей условия будут сверены ещё раз."
+      submit-tooltip: "<#e8dfd2>Предметы и выплата будут обработаны одной защищённой операцией."
+    processing:
+      title: "<#f4d87a><bold>Проверяем условия"
+      submission: "<#e8dfd2>Проверяем предметы и записываем операцию. Не повторяйте сдачу."
+      tracking: "<#e8dfd2>Сохраняем цель отслеживания…"
+    buttons:
+      refresh: "<#f4d87a>Обновить заказы"
+      continue: "<#f4d87a>Проверить сдачу ›"
+      unavailable: "<#ffffff>[Недоступно] Сдать ресурсы"
+      tracked: "<#9bd48d>✔ Отслеживается"
+      track: "<#ffffff>○ Отслеживать"
+      track-unavailable: "<#ffffff>[Недоступно] Отслеживать"
+      submit: "<#9bd48d>Сдать <quantity> шт. · <payout> <#ffffff>💰"
+    labels:
+      inventory: "<#e8dfd2>В инвентаре"
+      batch: "<#e8dfd2>Можно сдать"
+      minimum: "<#e8dfd2>Минимум для сдачи"
+      personal-left: "<#e8dfd2>Личный лимит"
+      price: "<#e8dfd2>Цена за штуку"
+      deadline: "<#e8dfd2>Приём до"
+      resource: "<#e8dfd2>Ресурс"
+      selected: "<#e8dfd2>Сдать"
+      inventory-after: "<#e8dfd2>В инвентаре после"
+      payout: "<#e8dfd2>Выплата"
+      personal-after: "<#e8dfd2>Ваш остаток лимита"
+    tracking:
+      start-tooltip: "<#e8dfd2>Показывать прогресс сбора в HUD."
+      stop-tooltip: "<#e8dfd2>Нажмите, чтобы перестать отслеживать."
+      unavailable-tooltip: "<#ff6b61>Для этого заказа нельзя поставить цель."
+      saved: "<#9bd48d>Цель отслеживания обновлена."
+      failed: "<#ff6b61>Не удалось сохранить цель. Попробуйте ещё раз."
+    result:
+      committed: "<#9bd48d>Сдано <quantity> шт. · получено <payout> <#ffffff>💰"
+      not-committed: "<#ff6b61>Заказ не принят. Условия и инвентарь обновлены."
+      review-title: "<#ff6b61><bold>Операция на проверке"
+      review-body: "<#ff6b61>Не повторяйте сдачу. Администратор должен проверить состояние операции."
+  list:
+    title: "<dark_gray>Книга заказов"
+    heading: "<gold><bold>Книга заказов"
+    description-1: "<gray>Здесь принимают нужные ресурсы"
+    description-2: "<gray>за указанную награду."
+    empty-lore: "<gray>Загляните сюда позже."
+  availability:
+    ready: "<green>Можно сдать сейчас"
+    not-started: "<yellow>Приём ещё не начался"
+    closed: "<yellow>Приём сейчас закрыт"
+    completed: "<green>Нужный объём уже собран"
+    player-cap: "<yellow>Ваш лимит по заказу исчерпан"
+    not-enough-items: "<#ff6b61>Не хватает предметов для партии"
+    budget-exhausted: "<yellow>Бюджета не хватает на минимальную партию"
+    origin-required: "<yellow>Сдача у конторщика на спавне"
+    unavailable: "<yellow>Сдача сейчас недоступна. Обновите книгу заказов"
+    opens-at: "<gray>Начало приёма: <white>{time}"
+    renews-at: "<gray>Книга обновится: <white>{time}"
+  pagination:
+    previous: "Предыдущая страница"
+    next: "Следующая страница"
+  tracking:
+    progress: "<aqua>{name} <white>{current}/{target} <gray>для сдачи"
+    completed: "<green>Ресурсы собраны: {name} · {current}/{target}. <gray>Проверьте условия: /arc contracts"
+    selected: "Показываем количество в инвентаре"
+    hint: "Одна цель сбора; место и цена не резервируются"
+    start: "<green>[▶] ЛКМ — отслеживать"
+    stop: "<yellow>[▶] ЛКМ — перестать отслеживать"
+    unavailable: "<gray>Отслеживание сейчас недоступно"
+    failure: "<yellow>Не удалось сохранить цель. Попробуйте ещё раз."
+  quantity:
+    min: "Минимум"
+    stack: "Стак"
+    max: "Максимум"
+  detail:
+    title: "<dark_gray>Сдать ресурсы"
+    info-heading: "<gold><bold>Общий заказ"
+    purpose: "<gray>Ресурсы для поселения."
+  messages:
+    receipt: "<green>Сдано {quantity} · Получено {payout} <white>💰</white>"
+    origin-required: "<yellow>Сдать заказ можно только у конторщика на спавне."
+    unavailable: "<yellow>Этот заказ больше недоступен. Обновите книгу заказов."
+    rejections: { }
+
+boards:
+  all:
+    name: "Все заказы"
+    dialog:
+      catalog:
+        title: "<#ffffff><bold>Все заказы"
+      source:
+        tooltip: "<#e8dfd2>Заказы всех источников · открыто: <orders>."
+  bank_orders:
+    desk-title: "<#20252b>Закупки палаты сделок"
+    name: "Банк"
+    speaker: "Фома"
+    availability:
+      origin-required: "<yellow>Сдача: Фома в палате сделок на спавне"
+    detail:
+      purpose: "<gray>Металл и принадлежности для конторы."
+    dialog:
+      source:
+        tooltip: "<#e8dfd2>Закупки палаты сделок · открыто: <orders>."
+      catalog:
+        title: "<#f4d87a><bold>Закупки палаты сделок"
+      detail:
+        purpose: "<#e8dfd2>Металл и принадлежности для конторы."
+  guild_orders:
+    desk-title: "<#20252b>Снабжение гильдии"
+    name: "Гильдия"
+    speaker: "Тихомир"
+    availability:
+      origin-required: "<yellow>Сдача: Тихомир на спавне"
+    detail:
+      purpose: "<gray>Провизия и материалы для мастерских."
+    dialog:
+      source:
+        tooltip: "<#e8dfd2>Снабжение мастерских · открыто: <orders>."
+      catalog:
+        title: "<#c4abff><bold>Снабжение гильдии"
+      detail:
+        purpose: "<#e8dfd2>Провизия и материалы для мастерских."
+  forge_orders:
+    desk-title: "<#20252b>Заказы кузницы"
+    name: "Кузница"
+    availability:
+      origin-required: "<yellow>Сдача: Мила в кузнице на спавне"
+    speaker: "Мила"
+    list:
+      title: "<dark_gray>Заказы кузницы"
+      heading: "<gold><bold>Книга заказов кузницы"
+      description-1: "<gray>Нужны руда, уголь"
+      description-2: "<gray>и готовый металл."
+      empty-lore: "<gray>Новые заказы появятся позже."
+    detail:
+      title: "<dark_gray>Сдать заказ кузнице"
+      info-heading: "<gold><bold>Заказ кузницы"
+      purpose: "<gray>Топливо и металл для кузницы."
+    dialog:
+      source:
+        tooltip: "<#e8dfd2>Топливо и металл · открыто: <orders>."
+      catalog:
+        title: "<#ffb277><bold>Заказы кузницы"
+      detail:
+        purpose: "<#e8dfd2>Топливо и металл для кузницы."
+  food_orders:
+    desk-title: "<#20252b>Матео · продукты для бара"
+    name: "Продукты для бара"
+
+list:
+  info:
+    material: PAPER
+  empty:
+    material: BARRIER
+
+detail:
+  info:
+    material: PAPER
+  payout:
+    material: GOLD_NUGGET
+  back:
+    material: BLUE_STAINED_GLASS_PANE
+  confirm:
+    material: GREEN_STAINED_GLASS_PANE
+
+desk:
+  processing: '<#ff9f0f>Принимаем товары…'
+  cursor-not-empty: '<#ff9f0f>Сначала положите предмет с курсора в инвентарь.'
+  save-failed: '<#ff9f0f>Не удалось сохранить инвентарь. Попробуйте ещё раз.'
+  instruction: '<#e6fff3>Слева — заказы. Справа — товары для сдачи.'
+  fish: '<#e6fff3>Треска, лосось, тропическая рыба, иглобрюх.'
+  plain-item: '<#e6fff3>Принимается обычный предмет без переименования.'
+  accepting: '<#2bba43>Положите товар в ячейки справа и нажмите «Продать».'
+  player-cap: '<#ff9f0f>Ваш лимит по этому заказу исчерпан.'
+  complete: '<#ff9f0f>Заказ уже выполнен.'
+  transfer-rejected: '<#ff9f0f>Нет места или этот товар не входит в список заказов.'
+  review: '<#c42323>Сдача остановлена для проверки. Не повторяйте её до разбора администратором.'
+  not-accepted: '<#ff9f0f>Остаток не принят: проверьте лимиты заказов.'
+  empty: '<#ff9f0f>Сейчас открытых заказов нет.'
+  unavailable: '<#ff9f0f>Снова обратитесь к NPC, чтобы сдать товары.'
+  return-full: '<#ff9f0f>Инвентарь полон. Остаток сохранён у этого NPC — заберите его при следующем открытии.'
+  success: '<#2bba43>Принято <quantity> шт. +<price> <white>💰</white>'
+  button:
+    empty: '<#2bba43>Положите товары справа'
+    sell: '<#2bba43>Продать'
+    mixed: '<#2bba43>Продать доступные товары'
+    cap: '<#ff9f0f>Лимит исчерпан'
+    blocked: '<#ff9f0f>Товары не принимаются'
+    unavailable: '<#ff9f0f>Приём сейчас недоступен. Попробуйте позже.'
+    rejected: '<#ff9f0f>Не удалось сдать'
+    review: '<#c42323>Сдача на проверке'
+    sold: '<#2bba43>Сдано <quantity> шт. +<price> <white>💰</white>'
+    partial: '<#ff9f0f>Сдано частично +<price> <white>💰</white>'
+    accepted: '<#8c8c8c>• <#b8b8b8>Сдано: <#e6fff3><item> <#92bed8>× <quantity>'
+    offered: '<#8c8c8c>• <#b8b8b8>К сдаче: <#e6fff3><item> <#92bed8>× <quantity>'
+    remaining: '<#8c8c8c>• <#b8b8b8>Осталось: <#e6fff3><item> <#92bed8>× <quantity>'
+    state: '  <state>'
+    page: '<#b8b8b8>Страница <current> / <pages>'
+    action: '<#8c8c8c>[<#2bba43>▶<#8c8c8c>] <#2bba43>ЛКМ <#b8b8b8>— сдать доступные товары'

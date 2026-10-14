@@ -1,0 +1,11 @@
+name: ARCContractCrashFixture
+version: 1.0
+main: ru.arc.contractfixture.ContractCrashFixturePlugin
+api-version: '1.21'
+depend: [ArcContracts, Citizens, RedisEconomy, ARCContractTestFixture]
+commands:
+  contractcrashfixture:
+    permission: contractcrashfixture.admin
+permissions:
+  contractcrashfixture.admin:
+    default: op

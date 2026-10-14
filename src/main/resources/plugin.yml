@@ -1,0 +1,9 @@
+name: ArcContracts
+version: '${version}'
+main: ru.arc.contracts.ArcContractsPlugin
+api-version: '1.21'
+depend:
+  - ARC
+softdepend:
+  - Citizens
+  - RedisEconomy

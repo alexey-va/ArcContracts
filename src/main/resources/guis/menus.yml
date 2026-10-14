@@ -1,0 +1,256 @@
+# Contract menu catalog copied from the legacy ARC menus file.
+# The host keeps its own menu catalog; these definitions are loaded by ArcContracts.
+menus:
+  layouts:
+    contracts-desk-3:
+      schema-version: 1
+      rows: 3
+      background: { template: background }
+      elements:
+        previous: { slot: 5, template: contract-desk-previous }
+        sell: { slot: 14, template: contract-desk-sell }
+        next: { slot: 23, template: contract-desk-next }
+      regions:
+        contract-orders: { slots: ['0-4', '9-13', '18-22'] }
+        contract-deposit: { slots: ['6-8', '15-17', '24-26'] }
+    contracts-desk-4:
+      schema-version: 1
+      rows: 4
+      background: { template: background }
+      elements:
+        previous: { slot: 14, template: contract-desk-previous }
+        sell: { slot: 23, template: contract-desk-sell }
+        next: { slot: 32, template: contract-desk-next }
+      regions:
+        contract-orders: { slots: ['0-4', '9-13', '18-22', '27-31'] }
+        contract-deposit: { slots: ['15-17', '24-26', '33-35'] }
+    contracts-desk-5:
+      schema-version: 1
+      rows: 5
+      background: { template: background }
+      elements:
+        previous: { slot: 14, template: contract-desk-previous }
+        sell: { slot: 23, template: contract-desk-sell }
+        next: { slot: 32, template: contract-desk-next }
+      regions:
+        contract-orders: { slots: ['0-4', '9-13', '18-22', '27-31', '36-40'] }
+        contract-deposit: { slots: ['15-17', '24-26', '33-35'] }
+    contracts-desk-6:
+      schema-version: 1
+      rows: 6
+      background: { template: background }
+      elements:
+        previous: { slot: 45, template: contract-desk-previous }
+        sell: { slot: 4, template: contract-desk-sell }
+        next: { slot: 48, template: contract-desk-next }
+      regions:
+        contract-orders: { slots: ['0-3', '9-12', '18-21', '27-30', '36-39', '46-47'] }
+        contract-deposit: { slots: ['5-8', '14-17', '23-26', '32-35', '41-44', '50-53'] }
+    contracts-list:
+      schema-version: 1
+      rows: 6
+      background: { template: background }
+      elements:
+        info: { slot: 4, template: contracts-list-info }
+        empty: { slot: 40, template: contracts-list-empty }
+        tab-all: { slot: 0, template: contracts-tab }
+        tab-forge: { slot: 2, template: contracts-tab }
+        tab-bank: { slot: 6, template: contracts-tab }
+        tab-guild: { slot: 8, template: contracts-tab }
+        previous: { slot: 45, template: contracts-page }
+        refresh: { slot: 49, template: contracts-refresh }
+        next: { slot: 53, template: contracts-page }
+      regions:
+        orders: { slots: ['10-16', '19-25', '28-34'] }
+    contracts-detail:
+      schema-version: 1
+      rows: 3
+      background: { template: background }
+      elements:
+        resource: { slot: 2, template: contracts-detail-resource }
+        info: { slot: 4, template: contracts-detail-info }
+        payout: { slot: 6, template: contracts-detail-payout }
+        quantity: { slot: 13, template: contracts-detail-quantity }
+        quantity-min: { slot: 9, template: contracts-quantity-preset }
+        quantity-stack: { slot: 10, template: contracts-quantity-preset }
+        quantity-max: { slot: 11, template: contracts-quantity-preset }
+        track: { slot: 15, template: contracts-track }
+        next-order: { slot: 24, template: contracts-next-order }
+        back: { slot: 18, template: contracts-detail-back }
+        confirm: { slot: 26, template: contracts-detail-confirm }
+  templates:
+    contract-desk-order:
+      material: PAPER
+      name: '<italic:false><#ffcd70><bold><name>'
+      lore:
+        - '<italic:false><#e6fff3><accepted>'
+        - '<italic:false>'
+        - '<italic:false><#b8b8b8>За штуку: <#ffcd70><price> <white>💰</white>'
+        - '<italic:false><#b8b8b8>Базовая цена: <white><base> <white>💰</white>'
+        - '<italic:false><#b8b8b8>Изменение цены: <growth> от базовой'
+        - '<italic:false><#b8b8b8>Бонус ранга: <white><rank>'
+        - '<italic:false><#b8b8b8>Ваш остаток: <white><remaining> шт.'
+        - '<italic:false>'
+        - '<italic:false><state>'
+    contract-desk-info:
+      material: HOPPER
+      name: '<italic:false><#92bed8><bold>Сдача заказов'
+      lore:
+        - '<italic:false><#e6fff3>Положите товары в ячейки справа.'
+        - '<italic:false><#e6fff3>Shift + ЛКМ — положить стопку.'
+        - '<italic:false><#e6fff3>Нажмите «Продать» для сдачи.'
+        - '<italic:false>'
+        - '<italic:false><status>'
+        - '<italic:false><#b8b8b8><page>'
+        - '<italic:false><#b8b8b8>Остаток вернётся при закрытии.'
+        - '<italic:false><#b8b8b8>Без поставок цена постепенно растёт.'
+    contract-desk-sell:
+      material: LIME_DYE
+      name: '<italic:false><bold><name>'
+      lore:
+        - { repeat: details, text: '<italic:false><line>' }
+    contract-desk-empty:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '<italic:false> '
+    contract-desk-previous:
+      material: BLUE_STAINED_GLASS_PANE
+      custom-model-data: 11009
+      name: '<italic:false><#92bed8>‹ Предыдущая страница'
+    contract-desk-next:
+      material: BLUE_STAINED_GLASS_PANE
+      custom-model-data: 11008
+      name: '<italic:false><#92bed8>Следующая страница ›'
+    background:
+      material: GRAY_STAINED_GLASS_PANE
+      custom-model-data: 11000
+      hide-tooltip: true
+    contracts-list-info:
+      material: PAPER
+      name: '<heading>'
+      lore:
+        - ''
+        - '<description-one>'
+        - '<description-two>'
+        - ''
+        - '<white>Выберите заказ ниже.'
+    contracts-list-empty:
+      material: BARRIER
+      name: '<yellow>Сейчас заказов нет'
+      lore: ['<empty>']
+    contracts-order:
+      material: PAPER
+      name: '<gold><bold><contract-name>'
+      lore:
+        - '<gray><group-name>'
+        - ''
+        - '<gray>Подходящих предметов: <white><available>'
+        - '<gray>Партия сейчас: <white><can-submit-quantity>'
+        - '<gray>За партию примерно: <gold><batch-payout> <white>💰</white>'
+        - '<gray>Приём до: <white><ends-at>'
+        - ''
+        - '<action>'
+        - ''
+        - '<green>[▶] ЛКМ — подробнее'
+    contracts-tab:
+      material: BOOK
+      name: '<white><bold><label>'
+      lore:
+        - { text: '<green>Выбрано', when: selected }
+        - { text: '<gray>ЛКМ — открыть вкладку', unless: selected }
+    contracts-refresh:
+      material: CLOCK
+      name: '<yellow>Обновить'
+      lore: ['<gray>Обновить список заказов']
+    contracts-page:
+      material: ARROW
+      name: '<yellow><label>'
+      lore:
+        - '<gray>Страница <white><page>/<pages>'
+        - { text: '<green>[▶] ЛКМ — открыть', when: available }
+        - { text: '<dark_gray>Недоступно', unless: available }
+    contracts-quantity-preset:
+      material: PAPER
+      name: '<white><bold><label>'
+      lore:
+        - '<gray>Количество: <white><quantity>'
+        - { text: '<green>[▶] ЛКМ — выбрать', when: available }
+        - { text: '<gray>Нет доступной партии', unless: available }
+    contracts-track:
+      material: COMPASS
+      name: '<aqua><bold>Отслеживание'
+      lore:
+        - '<gray>Цель: <white><target>'
+        - '<gray>Статус: <white><status>'
+        - '<action>'
+        - { text: '<green>Отслеживается', when: tracked }
+    contracts-next-order:
+      material: ARROW
+      name: '<gold>Следующий заказ'
+      lore:
+        - { text: '<white><contract-name>', when: available }
+        - { text: '<green>[▶] ЛКМ — посмотреть условия', when: available }
+        - { text: '<dark_gray>Нет доступного заказа', unless: available }
+    contracts-detail-resource:
+      material: PAPER
+      name: '<gold><bold><contract-name>'
+      lore:
+        - ''
+        - '<gray>У вас: <white><available>'
+        - '<gray>Осталось по заказу: <white><remaining>'
+        - '<gray>Осталось по вашему лимиту: <white><player-remaining>'
+        - '<gray>Надбавка ранга к лимиту: <gold>+<cap-bonus>%'
+        - ''
+        - '<dark_gray>Принимаются только обычные предметы'
+        - '<dark_gray>без имени, чар и особых данных.'
+    contracts-detail-info:
+      material: PAPER
+      name: '<heading>'
+      lore:
+        - ''
+        - '<gray>Собрано: <white><accepted><gray>/<white><target>'
+        - '<gray>Участников: <white><contributors>'
+        - '<gray>Принято вами: <white><personal-accepted>'
+        - '<purpose>'
+        - { text: '<result>', when: has-result }
+        - { text: '<gray>Ещё можно сдать сейчас: <white><can-submit-quantity>', when: has-result }
+        - ''
+        - '<gray>Объём общий для всего сервера.'
+    contracts-detail-payout:
+      material: GOLD_NUGGET
+      name: '<gold><bold>За партию:</bold> <payout> <white>💰</white>'
+      lore:
+        - ''
+        - '<gray>Следующий предмет: <gold><per-unit> <white>💰</white>'
+        - '<gray>Надбавка ранга: <gold>+<payout-bonus>%'
+        - ''
+        - '<gray>Выплата рассчитана за всю партию.'
+        - '<gray>Расчёт предварительный.'
+        - '<gray>Точная сумма — на кнопке сдачи.'
+        - '<gray>Новые поставки могут изменить цену.'
+    contracts-detail-quantity:
+      material: PAPER
+      name: '<white><bold>Сдать: <selected>'
+      lore:
+        - ''
+        - '<gray>Минимальная партия: <white><minimum>'
+        - '<gray>Доступно сейчас: <white><maximum>'
+        - ''
+        - '<yellow>ЛКМ <gray>— добавить партию'
+        - '<yellow>ПКМ <gray>— убрать партию'
+        - '<yellow>Shift + ЛКМ <gray>— выбрать максимум'
+        - '<yellow>Shift + ПКМ <gray>— выбрать минимум'
+    contracts-detail-back:
+      material: BLUE_STAINED_GLASS_PANE
+      name: '<yellow><bold>Назад'
+      lore: ['<gray>Вернуться к книге заказов.']
+    contracts-detail-confirm:
+      material: GREEN_STAINED_GLASS_PANE
+      name: '<green><bold>Подтвердить'
+      lore:
+        - ''
+        - { text: '<gray>Будет принято: <white><selected>', when: can-submit }
+        - { text: '<gray>Выплата: <gold><payout> <white>💰</white>', when: can-submit }
+        - { text: '', when: can-submit }
+        - { text: '<green>[▶] ЛКМ — сдать ресурсы', when: can-submit }
+        - { text: '<red>Сдача недоступна', unless: can-submit }
+        - { text: '<unavailable-reason>', unless: can-submit }

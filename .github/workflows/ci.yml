@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arccontracts-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-package-publish:
+    name: Unit, integration, package, and gated publication
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: Verify arc-core consumer architecture
+        uses: alexey-va/arc-core/.github/actions/verify-consumer@531423c8f6be56998f05e4a65e7935df166d384e
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - name: Run unit tests
+        run: ./gradlew --no-daemon --build-cache test
+      - name: Verify Docker daemon
+        run: docker info
+      - name: Run Redis integration tests
+        run: ./gradlew --no-daemon --build-cache integrationTest
+      - name: Preserve unit and integration reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ArcContracts-reports-${{ github.sha }}
+          retention-days: 7
+          path: |
+            build/reports/tests/test/
+            build/test-results/test/
+            build/reports/tests/integrationTest/
+            build/test-results/integrationTest/
+            build/reports/jacoco/test/
+          if-no-files-found: warn
+      - name: Build deterministic JARs and stage immutable Maven artifacts
+        run: >-
+          ./gradlew --no-daemon --build-cache shadowJar
+          contractTestFixtureJar contractCrashFixtureJar
+          publishRuntimePluginPublicationToStagingRepository
+          :arc-contracts-api:publishMavenJavaPublicationToStagingRepository
+          publishContractTestFixturePublicationToStagingRepository
+          publishContractCrashFixturePublicationToStagingRepository
+      - name: Verify production JAR ownership and descriptor
+        run: ./scripts/verify-shadow-jar.sh
+      - name: Verify isolated contract test fixtures
+        run: ./scripts/verify-contract-fixtures.sh
+      - name: Preserve tested production JAR
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ArcContracts-${{ github.sha }}
+          retention-days: 7
+          path: |
+            build/libs/ArcContracts-*.jar
+            !build/libs/*-plain.jar
+          if-no-files-found: error
+      - name: Preserve isolated test fixture JARs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ArcContracts-test-fixtures-${{ github.sha }}
+          retention-days: 7
+          path: |
+            build/libs/ArcContractsContractTestFixture.jar
+            build/libs/ArcContractsContractCrashFixture.jar
+          if-no-files-found: error
+      - name: Publish immutable plugin, fixture, and API coordinates
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          REPOSILITE_PUBLISH_PASSWORD: ${{ secrets.REPOSILITE_PUBLISH_PASSWORD }}
+        run: ./scripts/publish-artifacts.sh

@@ -1,0 +1,196 @@
+generated-policy-evidence:
+  schema-version: 2
+  catalog-schema-version: 4
+  season-id: road_revival
+  observe-only: true
+  calibration-window-start-epoch-millis: 1786579964000
+  calibration-window-end-epoch-millis: 1787184764000
+  input-digests:
+    catalogSha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    budgetSha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    evidenceSha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+enabled: true
+mode: observe
+leader-server: spawn
+server-weekly-budget: '95000.00'
+submission-access:
+  routes:
+    "350": forge_orders
+    "367": bank_orders
+    "390": guild_orders
+orders:
+  road_stone:
+    enabled: true
+    kind: resource
+    display-name: Камень для старого тракта
+    item: minecraft:stone
+    funding: server_envelope
+    window-starts-at: '2026-08-20T00:12:44Z'
+    window-ends-at: '2026-08-27T00:12:44Z'
+    payout-per-unit: '0.45'
+    budget: '45000.00'
+    target-quantity: 100000
+    per-player-quantity-cap: 20000
+    min-submission-quantity: 256
+    max-submission-quantity: 2304
+  station_timber:
+    enabled: true
+    kind: resource
+    display-name: Дубовые брёвна для станции
+    item: minecraft:oak_log
+    funding: server_envelope
+    window-starts-at: '2026-08-20T00:12:44Z'
+    window-ends-at: '2026-08-27T00:12:44Z'
+    payout-per-unit: '2.50'
+    budget: '50000.00'
+    target-quantity: 20000
+    per-player-quantity-cap: 4000
+    min-submission-quantity: 64
+    max-submission-quantity: 2304
+  station_iron:
+    enabled: true
+    kind: resource
+    display-name: Железо для каркаса станции
+    item: minecraft:iron_ingot
+    funding: server_envelope
+    window-starts-at: '2026-08-27T00:12:44Z'
+    window-ends-at: '2026-09-03T00:12:44Z'
+    payout-per-unit: '7.50'
+    budget: '60000.00'
+    target-quantity: 8000
+    per-player-quantity-cap: 1600
+    min-submission-quantity: 32
+    max-submission-quantity: 512
+  station_rails:
+    enabled: true
+    kind: resource
+    display-name: Рельсы для шахтной ветки
+    item: minecraft:rail
+    funding: server_envelope
+    window-starts-at: '2026-09-03T00:12:44Z'
+    window-ends-at: '2026-09-10T00:12:44Z'
+    payout-per-unit: '8.00'
+    budget: '48000.00'
+    target-quantity: 6000
+    per-player-quantity-cap: 1200
+    min-submission-quantity: 64
+    max-submission-quantity: 512
+  station_lanterns:
+    enabled: true
+    kind: resource
+    display-name: Фонари для тракта и станции
+    item: minecraft:lantern
+    funding: server_envelope
+    window-starts-at: '2026-09-03T00:12:44Z'
+    window-ends-at: '2026-09-10T00:12:44Z'
+    payout-per-unit: '5.00'
+    budget: '40000.00'
+    target-quantity: 8000
+    per-player-quantity-cap: 1600
+    min-submission-quantity: 32
+    max-submission-quantity: 512
+season-catalog:
+  schema-version: 4
+  id: road_revival
+  title: Возрождение тракта
+  completion-stage: expedition_museum
+  duration-days: 28
+  starts-at: '2026-08-20T00:12:44Z'
+  ends-at: '2026-09-17T00:12:44Z'
+  dungeon-contracts:
+    mines_recon:
+      display-name: Разведка старых шахт
+      world: em_id_the_mines
+      requires-project-stage: road_foundation
+      expected-active-minutes: 60
+      reward-cooldown-minutes: 4320
+      payout-per-qualifying-player: '5000.00'
+      entry-burn-per-player: '1000.00'
+      minimum-active-share: 0.6
+      weekly-qualifying-player-cap: 15
+      planned-bound-reward: arc:road_revival/mines_core
+    bridge_recon:
+      display-name: Страж древнего моста
+      world: em_id_the_bridge
+      requires-project-stage: track_and_lighting
+      expected-active-minutes: 45
+      reward-cooldown-minutes: 4320
+      payout-per-qualifying-player: '3750.00'
+      entry-burn-per-player: '750.00'
+      minimum-active-share: 0.6
+      weekly-qualifying-player-cap: 15
+      planned-bound-reward: arc:road_revival/bridge_relic
+    quarry_recon:
+      display-name: Запуск подъёмника каменоломни
+      world: em_id_the_quarry
+      requires-project-stage: road_foundation
+      expected-active-minutes: 75
+      reward-cooldown-minutes: 4320
+      payout-per-qualifying-player: '6250.00'
+      entry-burn-per-player: '1250.00'
+      minimum-active-share: 0.6
+      weekly-qualifying-player-cap: 15
+      planned-bound-reward: arc:road_revival/quarry_permit
+    deep_mines_recon:
+      display-name: Механизм из глубоких шахт
+      world: em_id_the_deep_mines
+      requires-project-stage: station_frame
+      expected-active-minutes: 90
+      reward-cooldown-minutes: 4320
+      payout-per-qualifying-player: '7500.00'
+      entry-burn-per-player: '1500.00'
+      minimum-active-share: 0.6
+      weekly-qualifying-player-cap: 15
+      planned-bound-reward: arc:road_revival/deep_mines_gear
+  public-project:
+    id: old_road_and_station
+    title: Старый тракт и шахтная станция
+    stages:
+      road_foundation:
+        display-name: Основание старого тракта
+        requires-project-stages: []
+        cash-contribution: '50000.00'
+        required-resources:
+          road_stone: 100000
+          station_timber: 20000
+        required-bound-rewards: {}
+        unlocks-dungeon-contracts:
+        - mines_recon
+        - quarry_recon
+        unlock: physical_road_and_station_plot
+      station_frame:
+        display-name: Каркас шахтной станции
+        requires-project-stages:
+        - road_foundation
+        cash-contribution: '75000.00'
+        required-resources:
+          station_iron: 8000
+        required-bound-rewards: {}
+        unlocks-dungeon-contracts:
+        - deep_mines_recon
+        unlock: station_frame_build_milestone
+      track_and_lighting:
+        display-name: Ветка и освещение
+        requires-project-stages:
+        - station_frame
+        cash-contribution: '75000.00'
+        required-resources:
+          station_rails: 6000
+          station_lanterns: 8000
+        required-bound-rewards: {}
+        unlocks-dungeon-contracts:
+        - bridge_recon
+        unlock: visible_rail_and_lighting_milestone
+      expedition_museum:
+        display-name: Экспедиционный музей
+        requires-project-stages:
+        - track_and_lighting
+        cash-contribution: '50000.00'
+        required-resources: {}
+        required-bound-rewards:
+          arc:road_revival/mines_core: 5
+          arc:road_revival/bridge_relic: 5
+          arc:road_revival/quarry_permit: 5
+          arc:road_revival/deep_mines_gear: 5
+        unlocks-dungeon-contracts: []
+        unlock: season_museum_finale
