@@ -109,4 +109,5 @@ private fun loadContractsMenuConfiguration() = run {
 }
 
 @Suppress("DEPRECATION")
-private fun ItemStack.legacyCustomModelData(): Int? = itemMeta.customModelData
+private fun ItemStack.legacyCustomModelData(): Int? =
+    itemMeta.takeIf { it.hasCustomModelData() }?.customModelData
