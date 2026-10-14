@@ -25,7 +25,7 @@ internal class ContractDeskStorage(
 
     private fun hasNonEmptyCursor(): Boolean {
         val cursor = player.openInventory.cursor
-        return cursor != null && !cursor.type.isAir && cursor.amount > 0
+        return !cursor.type.isAir && cursor.amount > 0
     }
 
     override fun snapshot(): List<ItemStack?> = player.persistentDataContainer.get(key, PersistentDataType.BYTE_ARRAY)
