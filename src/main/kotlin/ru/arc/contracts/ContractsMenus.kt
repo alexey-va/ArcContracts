@@ -122,9 +122,12 @@ internal object ContractsMenus {
         enabled: Boolean = true,
         acceptedClicks: Set<ClickType> = STANDARD_CLICKS,
         action: (Player) -> Unit = {},
-    ): PaperMenuEntry = PaperMenuEntry(item = item, enabled = enabled, acceptedClicks = acceptedClicks) { context ->
-        action(context.player)
-    }
+    ): PaperMenuEntry = PaperMenuEntry(
+        item = item,
+        enabled = enabled,
+        acceptedClicks = acceptedClicks,
+        onClick = { context -> action(context.player) },
+    )
 
     fun entryWithContext(
         item: ItemStack,

@@ -705,10 +705,10 @@ object ContractsManager {
             else -> return
         }
         val event = ResourceContractCommittedEvent(
-            submissionId = receipt.submissionId,
-            playerId = runCatching { UUID.fromString(receipt.playerId) }.getOrNull() ?: return,
-            contractId = contractId,
-            quantity = receipt.quantity,
+            receipt.submissionId,
+            runCatching { UUID.fromString(receipt.playerId) }.getOrNull() ?: return,
+            contractId,
+            receipt.quantity,
         )
         val publish = Runnable { Bukkit.getPluginManager().callEvent(event) }
         if (Bukkit.isPrimaryThread()) publish.run() else Tasks.scheduler.runSync(publish)

@@ -146,7 +146,7 @@ class ArcContractsPlugin : JavaPlugin() {
 
     private fun closeRuntime() {
         if (serviceRegistered) {
-            server.servicesManager.unregister(ArcContractsService::class.java, serviceProvider)
+            serviceProvider?.let { server.servicesManager.unregister(ArcContractsService::class.java, it) }
             serviceRegistered = false
         }
         serviceProvider = null
