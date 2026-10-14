@@ -29,6 +29,7 @@ import ru.arc.paper.playerstate.NativePaperPlayerDataPersistence
 import ru.arc.paper.testing.MockBukkitTestRuntime
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Comparator
 import java.util.concurrent.CompletableFuture
 
 class NpcContractDepositGuiTest {

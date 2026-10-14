@@ -4,22 +4,27 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import ru.arc.core.TestTaskScheduler
 import ru.arc.observability.RuntimeHealthContribution
+import ru.arc.observability.RuntimeHealthState
 import ru.arc.paper.runtime.PaperPluginRuntime
 import ru.arc.paper.testing.MockBukkitTestRuntime
+import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicInteger
 
 class ContractsHealthLifecycleTest {
     @Test
     fun `registered probe is owned once and periodic reports resume after reload`() {
         MockBukkitTestRuntime.open().use { paper ->
             val plugin = paper.createSimplePlugin("ContractsHealthLifecycleTest")
-            val scheduler = TestTaskScheduler()
-            val reports = mutableListOf<ru.arc.observability.RuntimeHealthSnapshot>()
+            val timerExecutions = AtomicInteger()
+            val scheduler = TestTaskScheduler(Executor { task ->
+                timerExecutions.incrementAndGet()
+                task.run()
+            })
             val runtime = PaperPluginRuntime(
                 plugin = plugin,
                 component = "contracts",
                 scheduler = scheduler,
                 eventSink = {},
-                healthSink = reports::add,
             )
 
             try {
@@ -29,22 +34,24 @@ class ContractsHealthLifecycleTest {
                 }
                 assertEquals(1, runtime.ownedResourceCount())
                 runtime.ready()
-                reports.clear()
+                assertEquals(RuntimeHealthState.UP, runtime.snapshot().state)
+                assertEquals(listOf("contracts"), runtime.snapshot().probes.map { it.id })
+                assertEquals(mapOf("contracts.season_catalog" to 1), runtime.snapshot().schemas)
 
                 scheduler.tick(2)
-                assertEquals(1, reports.size)
+                assertEquals(1, timerExecutions.get())
 
                 runtime.reloadContractsLifecycle(reportPeriodTicks = 2)
-                assertEquals(2, reports.size)
                 assertEquals(1, scheduler.timerCount())
 
                 scheduler.tick(1)
-                assertEquals(2, reports.size)
+                assertEquals(1, timerExecutions.get())
                 scheduler.tick(1)
-                assertEquals(3, reports.size)
+                assertEquals(2, timerExecutions.get())
             } finally {
                 runtime.close()
             }
+            assertEquals(0, scheduler.timerCount())
         }
     }
 }
