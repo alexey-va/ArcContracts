@@ -82,6 +82,7 @@ class NpcContractDepositGuiTest {
     }
 
     @Test
+    @Suppress("DEPRECATION") // Verify the existing integer custom-model-data contract used by the resource pack.
     fun `all NPC groups stage input then sell only offered items and keep the same chest open`() {
         val player = server.addPlayer()
         mockkObject(ContractOriginGate, NativePaperPlayerDataPersistence)
