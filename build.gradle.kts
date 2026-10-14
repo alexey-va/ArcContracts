@@ -35,7 +35,6 @@ kotlin {
 }
 
 val integrationTestSourceSet = sourceSets.create("integrationTest") {
-    kotlin.srcDir("src/integrationTest/kotlin")
     compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output
     runtimeClasspath += sourceSets.main.get().output + sourceSets.test.get().output
 }
@@ -45,8 +44,6 @@ kotlin.target.compilations.getByName("integrationTest")
 // These CI-only plugins are separate artifacts so the fixture code never enters
 // the production shadow JAR. Association grants access to internal child APIs.
 val contractTestFixtureSourceSet = sourceSets.create("contractTestFixture") {
-    kotlin.srcDir("src/contractTestFixture/kotlin")
-    resources.srcDir("src/contractTestFixture/resources")
     compileClasspath += sourceSets.main.get().output
     runtimeClasspath += sourceSets.main.get().output
 }
@@ -54,8 +51,6 @@ kotlin.target.compilations.getByName("contractTestFixture")
     .associateWith(kotlin.target.compilations.getByName("main"))
 
 val contractCrashFixtureSourceSet = sourceSets.create("contractCrashFixture") {
-    kotlin.srcDir("src/contractCrashFixture/kotlin")
-    resources.srcDir("src/contractCrashFixture/resources")
     compileClasspath += sourceSets.main.get().output
     runtimeClasspath += sourceSets.main.get().output
 }
