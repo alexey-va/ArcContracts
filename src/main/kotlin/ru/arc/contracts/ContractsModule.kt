@@ -2166,6 +2166,7 @@ object ContractsMetrics {
                     "arc_contracts_server_weekly_budget_currency",
                     "Configured weekly server-funded contracts envelope",
                     serverWeeklyBudgetMinor / 100.0,
+                    emptyMap(),
                 ),
             )
             add(point("arc_contract_journal_available", "Whether the durable contract submission journal is available", journal.available))
@@ -2182,6 +2183,7 @@ object ContractsMetrics {
                     "arc_contract_journal_capacity_remaining",
                     "Remaining bounded network record capacity before contract submissions must fail closed",
                     journal.capacityRemaining.toDouble(),
+                    emptyMap(),
                 ),
             )
             journal.stateCounts.forEach { (state, count) ->
@@ -2199,6 +2201,7 @@ object ContractsMetrics {
                     "arc_contract_journal_held_item_quantity",
                     "Item quantity confirmed removed and not yet committed or refunded",
                     journal.heldItemQuantity.toDouble(),
+                    emptyMap(),
                 ),
             )
             add(
@@ -2222,6 +2225,7 @@ object ContractsMetrics {
                     "arc_contract_journal_manual_review",
                     "Contract submissions halted for manual reconciliation",
                     journal.manualReviewCount.toDouble(),
+                    emptyMap(),
                 ),
             )
             add(
@@ -2229,6 +2233,7 @@ object ContractsMetrics {
                     "arc_contract_journal_oldest_attention_age_seconds",
                     "Age of the oldest non-terminal contract submission journal record",
                     journal.oldestAttentionAgeSeconds.toDouble(),
+                    emptyMap(),
                 ),
             )
             add(
@@ -2313,7 +2318,7 @@ object ContractsMetrics {
         }
 
     private fun point(name: String, description: String, value: Boolean): MetricPoint =
-        MetricPoint(name, description, if (value) 1.0 else 0.0)
+        MetricPoint(name, description, if (value) 1.0 else 0.0, emptyMap())
 
     private fun quantity(view: ResourceContractView, component: String, value: Long): MetricPoint =
         MetricPoint(

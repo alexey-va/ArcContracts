@@ -31,4 +31,15 @@ if grep -Eq '^(ru/arc/contracts/api/|ru/arc/paper/api/|ru/arc/paper/sql/(PaperSq
   exit 1
 fi
 
+contracts_metrics_bytecode="$(javap -classpath "$jar_path" -verbose ru.arc.contracts.ContractsMetrics)"
+metric_point_constructor_refs="$(grep -E 'Methodref .*ru/arc/metrics/core/MetricPoint\."<init>":' <<<"$contracts_metrics_bytecode" || true)"
+if [[ -z "$metric_point_constructor_refs" ]] || ! grep -Fqv 'DefaultConstructorMarker' <<<"$metric_point_constructor_refs"; then
+  printf 'Could not find a normal MetricPoint constructor reference in ContractsMetrics bytecode.\n' >&2
+  exit 1
+fi
+if grep -Fq 'DefaultConstructorMarker' <<<"$metric_point_constructor_refs"; then
+  printf 'ContractsMetrics calls the host MetricPoint constructor with Kotlin DefaultConstructorMarker; pass every argument explicitly.\n' >&2
+  exit 1
+fi
+
 printf 'Verified production JAR: %s\n' "$jar_path"
