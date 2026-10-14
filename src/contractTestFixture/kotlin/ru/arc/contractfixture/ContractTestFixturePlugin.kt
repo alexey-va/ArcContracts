@@ -32,6 +32,8 @@ class ContractTestFixturePlugin : JavaPlugin() {
         check(citizens.isEnabled) { "Contract test fixture requires enabled Citizens" }
         val world = server.getWorld(ContractOriginGate.ORIGIN_WORLD)
             ?: error("Contract fixture world is unavailable: ${ContractOriginGate.ORIGIN_WORLD}")
+        // Keep the same fixture compatible with Paper 1.21.11 and 26.1.2.
+        @Suppress("DEPRECATION")
         world.setGameRule(GameRule.SPAWN_RADIUS, 0)
         val location = world.spawnLocation.clone().add(2.0, 0.0, 0.0)
         val created = CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, DESK_NAME)
