@@ -1318,8 +1318,8 @@ object ContractsManager {
 
     @JvmStatic
     fun publishMetrics() {
-        val config = configRef.get()
-        ContractsRuntime.publishMetrics(
+        ContractsRuntime.publishMetrics {
+            val config = configRef.get()
             ContractsMetrics.points(
                 enabled = config?.enabled == true,
                 available = isAvailable(),
@@ -1337,8 +1337,8 @@ object ContractsManager {
                 seasonTrophyJournal = seasonTrophyJournalSummary(),
                 seasonDungeonRewardJournal = seasonDungeonRewardJournalSummary(),
                 dungeonObservation = dungeonObservationSnapshot(),
-            ),
-        )
+            )
+        }
     }
 
     private data class SeasonRuntimeRepositories(

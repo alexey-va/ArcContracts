@@ -25,9 +25,7 @@ internal object ContractsRuntime {
     val gson: Gson = Gson()
     var redis: PaperRedisClient? = null
         private set
-    var metrics: ArcMetricsScope? = null
-        private set
-    private var metricsService: ArcMetricsService? = null
+    private val metricSnapshotPublisher = ContractMetricSnapshotPublisher()
 
     val legacyDataPath get() = host.legacyDataPath()
     val serverName get() = host.serverName()
@@ -41,8 +39,7 @@ internal object ContractsRuntime {
         this.plugin = plugin
         this.host = host
         this.redis = redis
-        this.metricsService = metricsService
-        metrics = metricsService?.open("arc-contracts")
+        metricSnapshotPublisher.attach(metricsService)
         val logging = ConfigManager.ofModule(host.legacyDataPath(), LoggingModuleConfig.RESOURCE)
         val loggingConfig = LoggingModuleConfig(logging)
         ArcLogging.install(
@@ -66,20 +63,13 @@ internal object ContractsRuntime {
 
     /** Clears bounded owner meters so removed contract-ID series do not survive a config reload. */
     fun refreshMetrics(nextService: ArcMetricsService?) {
-        metrics?.close()
-        metricsService = nextService
-        metrics = metricsService?.open("arc-contracts")
+        metricSnapshotPublisher.attach(nextService)
     }
 
     fun telemetry(): ArcTelemetryProvider? =
         plugin.server.servicesManager.load(ArcTelemetryProvider::class.java)
 
-    fun publishMetrics(points: Collection<MetricPoint>) {
-        val scope = metrics ?: return
-        points.forEach { point ->
-            scope.gauge(point.name, point.description, point.tags).set(point.value)
-        }
-    }
+    fun publishMetrics(snapshot: () -> Collection<MetricPoint>) = metricSnapshotPublisher.publish(snapshot)
 
     fun recordDungeonStarted(playerId: UUID, world: String, runId: String, participants: Int, instanceWorld: String?) {
         telemetry()?.recordActivity(
@@ -146,9 +136,58 @@ internal object ContractsRuntime {
     }
 
     fun close() {
-        metrics?.close()
-        metrics = null
-        metricsService = null
+        metricSnapshotPublisher.close()
         redis = null
+    }
+}
+
+/**
+ * Serializes snapshot calculation, scope replacement, reload and close. The
+ * maximum configured snapshot is bounded at 1202; the 2048 budget and
+ * its arithmetic are documented in README. Changed key sets close the
+ * previous scope, removing stale status and deleted-contract series before
+ * publishing the new snapshot.
+ */
+internal class ContractMetricSnapshotPublisher {
+    private val lock = Any()
+    private var service: ArcMetricsService? = null
+    private var scope: ArcMetricsScope? = null
+    private var lastKeys: Set<MetricKey>? = null
+
+    fun attach(nextService: ArcMetricsService?) = synchronized(lock) {
+        scope?.close()
+        service = nextService
+        scope = nextService?.open(OWNER_ID, MAX_METRICS)
+        lastKeys = null
+    }
+
+    fun publish(snapshot: () -> Collection<MetricPoint>) = synchronized(lock) {
+        val points = snapshot()
+        val keys = points.mapTo(mutableSetOf()) { point ->
+            MetricKey(point.name, point.tags.toSortedMap().toList())
+        }
+        if (lastKeys != null && lastKeys != keys) {
+            scope?.close()
+            scope = service?.open(OWNER_ID, MAX_METRICS)
+        }
+        lastKeys = keys
+        val currentScope = scope ?: return@synchronized
+        points.forEach { point ->
+            currentScope.gauge(point.name, point.description, point.tags).set(point.value)
+        }
+    }
+
+    fun close() = synchronized(lock) {
+        scope?.close()
+        scope = null
+        service = null
+        lastKeys = null
+    }
+
+    private data class MetricKey(val name: String, val tags: List<Pair<String, String>>)
+
+    private companion object {
+        const val OWNER_ID = "arc-contracts"
+        const val MAX_METRICS = 2048
     }
 }
