@@ -26,7 +26,7 @@ jobs:
           distribution: temurin
           java-version: "25"
       - name: Verify arc-core consumer architecture
-        uses: alexey-va/arc-core/.github/actions/verify-consumer@e7f9bd33f705dc7da6018589166491993d034a95
+        uses: alexey-va/arc-core/.github/actions/verify-consumer@8b100a8db152ef7bc25e401fb46fd551f839cbe8
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
       - name: Run unit tests
         run: ./gradlew --no-daemon --build-cache test
