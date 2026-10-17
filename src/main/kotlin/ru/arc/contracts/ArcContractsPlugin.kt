@@ -182,7 +182,8 @@ open class ArcContractsPlugin : JavaPlugin() {
         trophyProtection = null
         runCatching { ContractsMenus.close() }
             .onFailure { ArcLogging.warn("Contract menu runtime cleanup failed", it) }
-        lifecycle?.close()
+        runCatching { lifecycle?.close() }
+            .onFailure { ArcLogging.warn("Contract lifecycle cleanup failed", it) }
         lifecycle = null
         if (executor != null) {
             val actualDrain = executor.closeAsync {
