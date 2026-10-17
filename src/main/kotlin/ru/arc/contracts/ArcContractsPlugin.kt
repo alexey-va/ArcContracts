@@ -13,8 +13,6 @@ import ru.arc.core.BoundedAsyncExecutor
 import ru.arc.core.whenCompleteSync
 import ru.arc.logging.LoggingModuleConfig
 import ru.arc.paper.api.ArcRedisService
-import ru.arc.config.Config
-import ru.arc.paper.menu.PaperMenuConfiguration
 import ru.arc.logging.ArcLogging
 import ru.arc.observability.RuntimeHealthContribution
 import ru.arc.observability.RuntimeHealthState
@@ -25,15 +23,12 @@ import ru.arc.paper.runtime.PaperPluginRuntime
 
 open class ArcContractsPlugin : JavaPlugin() {
     private var lifecycle: PaperPluginRuntime? = null
-    private class Generation(val worker: BoundedAsyncExecutor) {
-        @Volatile var redis: PaperRedisClient? = null
-    }
-    private var generation: Generation? = null
-    private var predecessor = java.util.concurrent.CompletableFuture.completedFuture(Unit)
+    private var worker: BoundedAsyncExecutor? = null
+    private var closeCompletion = java.util.concurrent.CompletableFuture.completedFuture(Unit)
     @Volatile private var stopped = true
     private var preparing = false
-    private val redisClient get() = generation?.redis
-    internal fun drained(): java.util.concurrent.CompletableFuture<Unit> = predecessor.copy()
+    @Volatile private var redisClient: PaperRedisClient? = null
+    internal fun drained(): java.util.concurrent.CompletableFuture<Unit> = closeCompletion.copy()
     private var trophyProtection: Listener? = null
     private var npcAccess: Listener? = null
     private var serviceProvider: ArcContractsService? = null
@@ -43,7 +38,9 @@ open class ArcContractsPlugin : JavaPlugin() {
         PaperArcRuntime.installScheduling(this)
         stopped = false
         preparing = true
-        predecessor = ContractsRuntime.predecessorDrain()
+        check(closeCompletion.isDone && !closeCompletion.isCompletedExceptionally) {
+            "Previous Contracts storage cleanup did not finish successfully"
+        }
         val runtime = PaperPluginRuntime(this, "arc-contracts").also {
             lifecycle = it
             it.start("version" to pluginMeta.version)
@@ -58,29 +55,23 @@ open class ArcContractsPlugin : JavaPlugin() {
             )
         }
         runtime.tasks.runTimer(20L, 20L) { if (!preparing) ContractsManager.publishMetrics() }
-        // Previous terminal IO may still own global manager/repository bindings. A new generation
-        // does not install or initialize anything until that exact drain finishes.
-        predecessor.whenCompleteSync(runtime.tasks) { _, failure ->
-            if (failure != null) { failPreparation(failure); return@whenCompleteSync }
-            val owner = Generation(BoundedAsyncExecutor("ArcContracts-storage", 1, 256))
-            generation = owner
-            ContractsRuntime.installWorker(owner.worker)
-            prepareGeneration(false)
-        }
+        val executor = BoundedAsyncExecutor("ArcContracts-storage", 1, 256)
+        worker = executor
+        ContractsRuntime.installWorker(executor)
+        prepareRuntime(false)
     }
 
     override fun onDisable() { closeRuntime() }
 
     internal fun reloadContracts() {
         check(Bukkit.isPrimaryThread()) { "ArcContracts reload must run on the primary server thread" }
-        if (!stopped && !preparing) prepareGeneration(true)
+        if (!stopped && !preparing) prepareRuntime(true)
     }
 
-    /** IO and recovery finish before native listeners/menus and admission are published. */
-    private fun prepareGeneration(reload: Boolean) {
+    /** Maintenance prepares configuration sequentially; recovery still owns its gameplay continuation. */
+    private fun prepareRuntime(reload: Boolean) {
         val runtime = requireNotNull(lifecycle)
-        val owner = requireNotNull(generation)
-        val worker = owner.worker
+        val executor = requireNotNull(worker)
         preparing = true
         ContractsRuntime.suspendAdmission()
         ContractsManager.suspendAdmission()
@@ -88,61 +79,51 @@ open class ArcContractsPlugin : JavaPlugin() {
         val token = runtime.tasks.token()
         val host = try { requireHostConfiguration() } catch (failure: Throwable) { failPreparation(failure); return }
         val readiness = try { host.ready() } catch (failure: Throwable) { failPreparation(failure); return }
-        readiness.whenCompleteSync(runtime.tasks, token) { _, readinessFailure ->
-            if (readinessFailure != null) { failPreparation(readinessFailure); return@whenCompleteSync }
-            val captured = runCatching {
-                HostSnapshot(host.legacyDataPath(), host.sharedRedisAvailable(), host.sharedRedisGeneration(),
-                    server.servicesManager.load(ArcRedisService::class.java), metricsService())
-            }.getOrElse { failPreparation(it); return@whenCompleteSync }
-            val root = captured.root
-            val redisAvailable = captured.redisAvailable
-            val redisService = captured.redisService
-            val metrics = captured.metrics
-            worker.submit {
+        fun prepareReadyHost() {
+            if (stopped || lifecycle !== runtime) return
+            try {
+                readiness.join() // Already complete; never wait for a pending host Main callback.
+                val root = host.legacyDataPath()
+                val redisAvailable = host.sharedRedisAvailable()
+                val redisService = server.servicesManager.load(ArcRedisService::class.java)
                 if (reload) ConfigManager.reloadAll()
                 mergeBundledDefaults(root)
                 val logging = ConfigManager.ofModule(root, LoggingModuleConfig.RESOURCE)
                 val menus = ContractsMenuSchema.load(root)
                 val gui = ConfigManager.of(root, "guis/contracts.yml")
-                ContractsModule.shutdown()
-                owner.redis?.close()
-                val redis = if (!redisAvailable) null else runCatching {
-                    openContractsRedis(requireNotNull(redisService) { "ARC Redis service is unavailable" })
-                }.onFailure { ArcLogging.warn("Shared Redis lease acquisition failed", it) }.getOrNull()
-                owner.redis = redis
-                PreparedGeneration(logging, menus, gui, redis)
-            }.whenCompleteSync(runtime.tasks, token) { prepared, failure ->
-                if (failure != null) { failPreparation(failure); return@whenCompleteSync }
-                val candidate = requireNotNull(prepared)
-                try {
-                    ContractsRuntime.install(this, host, candidate.redis, metrics, candidate.logging)
-                    if (reload) ContractsMenus.reload(candidate.menus) else ContractsMenus.initialize(this, root, candidate.menus)
-                } catch (attachFailure: Throwable) { failPreparation(attachFailure); return@whenCompleteSync }
-                worker.submit { ContractsModule.init(); ContractsManager.refreshReadModels() }.whenCompleteSync(runtime.tasks, token) { _, initFailure ->
+                val redis = executor.submit {
+                    ContractsModule.shutdown()
+                    redisClient?.close()
+                    redisClient = if (!redisAvailable) null else runCatching {
+                        openContractsRedis(requireNotNull(redisService) { "ARC Redis service is unavailable" })
+                    }.onFailure { ArcLogging.warn("Shared Redis lease acquisition failed", it) }.getOrNull()
+                    redisClient
+                }.get() // IO-only FIFO; maintenance may wait after admission is suspended.
+                ContractsRuntime.install(this, host, redis, metricsService(), logging)
+                if (reload) ContractsMenus.reload(menus) else ContractsMenus.initialize(this, root, menus)
+                if (!serviceRegistered) {
+                    registerListeners()
+                    val provider = ArcContractsServiceProvider(this)
+                    serviceProvider = provider
+                    server.servicesManager.register(ArcContractsService::class.java, provider, this, ServicePriority.Normal)
+                    serviceRegistered = true
+                }
+                // Recovery may use Main-thread gateways; waiting for this on Main would deadlock.
+                executor.submit { ContractsModule.init(); ContractsManager.refreshReadModels() }.whenCompleteSync(runtime.tasks, token) { _, initFailure ->
                     if (initFailure != null) { failPreparation(initFailure); return@whenCompleteSync }
                     try {
-                        if (!serviceRegistered) {
-                            registerListeners()
-                            val provider = ArcContractsServiceProvider(this)
-                            serviceProvider = provider
-                            server.servicesManager.register(ArcContractsService::class.java, provider, this, ServicePriority.Normal)
-                            serviceRegistered = true
-                        }
-                        NpcContractsGui.start(candidate.gui)
+                        NpcContractsGui.start(gui)
                         ContractsRuntime.readyAdmission()
                         ContractsManager.publishMetrics()
                         preparing = false
                         runtime.ready("redis" to (redisClient != null), "contracts_available" to ContractsManager.isAvailable())
                     } catch (publishFailure: Throwable) { failPreparation(publishFailure) }
                 }
-            }
+            } catch (failure: Throwable) { failPreparation(failure) }
         }
+        if (readiness.isDone) prepareReadyHost()
+        else readiness.whenCompleteSync(runtime.tasks, token) { _, _ -> prepareReadyHost() }
     }
-
-    private data class HostSnapshot(val root: java.nio.file.Path, val redisAvailable: Boolean, val generation: Long,
-        val redisService: ArcRedisService?, val metrics: ArcMetricsService?)
-
-    private data class PreparedGeneration(val logging: Config, val menus: PaperMenuConfiguration, val gui: Config, val redis: PaperRedisClient?)
 
     private fun failPreparation(failure: Throwable) {
         preparing = false
@@ -180,9 +161,10 @@ open class ArcContractsPlugin : JavaPlugin() {
     }
 
     private fun closeRuntime() {
-        if (stopped && lifecycle == null && generation == null) return
-        val owner = generation
-        generation = null
+        if (stopped && lifecycle == null && worker == null) return
+        val executor = worker
+        worker = null
+        val client = redisClient
         if (serviceRegistered) {
             serviceProvider?.let { server.servicesManager.unregister(ArcContractsService::class.java, it) }
             serviceRegistered = false
@@ -200,25 +182,20 @@ open class ArcContractsPlugin : JavaPlugin() {
         trophyProtection = null
         runCatching { ContractsMenus.close() }
             .onFailure { ArcLogging.warn("Contract menu runtime cleanup failed", it) }
-        runCatching { ContractsRuntime.close() }
-            .onFailure { ArcLogging.warn("Contract runtime cleanup failed", it) }
-        if (owner != null) {
-            val actualDrain = owner.worker.closeAsync {
-                try { ContractsModule.shutdown() }
-                finally {
-                    val client = owner.redis
-                    owner.redis = null
-                    client?.close()
-                }
-            }
-            predecessor = actualDrain
-            ContractsRuntime.recordDrain(actualDrain)
-            actualDrain.whenComplete { _, failure ->
-                if (failure != null) logger.log(java.util.logging.Level.SEVERE, "Contract terminal flush failed", failure)
-            }
-        }
         lifecycle?.close()
         lifecycle = null
+        if (executor != null) {
+            val actualDrain = executor.closeAsync {
+                try { ContractsModule.shutdown() }
+                finally { client?.close() }
+            }
+            closeCompletion = actualDrain
+            runCatching { actualDrain.get() }
+                .onFailure { logger.log(java.util.logging.Level.SEVERE, "Contract terminal flush failed", it) }
+        }
+        redisClient = null
+        runCatching { ContractsRuntime.close() }
+            .onFailure { ArcLogging.warn("Contract runtime cleanup failed", it) }
     }
 }
 

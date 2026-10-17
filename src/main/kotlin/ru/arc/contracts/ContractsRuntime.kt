@@ -30,9 +30,6 @@ internal object ContractsRuntime {
         private set
     private val metricSnapshotPublisher = ContractMetricSnapshotPublisher()
     private var worker: BoundedAsyncExecutor? = null
-    @Volatile private var terminalDrain = CompletableFuture.completedFuture(Unit)
-    fun predecessorDrain(): CompletableFuture<Unit> = terminalDrain.copy()
-    fun recordDrain(actual: CompletableFuture<Unit>) { terminalDrain = actual }
     @Volatile private var admissionReady = true // Offline/domain fixtures do not install a plugin worker.
     fun installWorker(executor: BoundedAsyncExecutor) { worker = executor; admissionReady = false }
     fun suspendAdmission() { admissionReady = false }

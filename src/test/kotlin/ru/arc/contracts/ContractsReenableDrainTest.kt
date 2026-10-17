@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class ContractsReenableDrainTest {
     @Test
-    fun `reenable waits actual old drain and repeated disable preserves that predecessor`() {
+    fun `maintenance stop waits for storage before the next enable`() {
         MockBukkitTestRuntime.open().use { paper ->
             val providerPlugin = paper.createSimplePlugin("ARC")
             val calls = AtomicInteger()
@@ -41,18 +41,22 @@ class ContractsReenableDrainTest {
             var plugin: ArcContractsPlugin? = null
             try {
                 plugin = paper.loadPlugin<ArcContractsPlugin>()
-                awaitMain(paper) { calls.get() == 1 }
-                paper.server.pluginManager.disablePlugin(plugin)
-                assertTrue(entered.await(5, TimeUnit.SECONDS))
-                assertFalse(plugin.drained().isDone)
-                plugin.onDisable() // Idempotent: must not replace the real predecessor with a completed future.
-                assertFalse(plugin.drained().isDone)
-                paper.server.pluginManager.enablePlugin(plugin)
-                paper.performTicks(2)
                 assertEquals(1, calls.get())
+                val stopReturned = java.util.concurrent.atomic.AtomicBoolean()
+                val releaseStorage = CompletableFuture.runAsync {
+                    assertTrue(entered.await(5, TimeUnit.SECONDS))
+                    assertFalse(stopReturned.get())
+                    release.countDown()
+                }
+                paper.server.pluginManager.disablePlugin(plugin)
+                stopReturned.set(true)
+                releaseStorage.get(5, TimeUnit.SECONDS)
+                assertTrue(plugin.drained().isDone)
+                plugin.onDisable()
+                assertTrue(plugin.drained().isDone)
+                paper.server.pluginManager.enablePlugin(plugin)
+                assertEquals(2, calls.get())
                 assertFalse(ContractsManager.isAvailable())
-                release.countDown()
-                awaitMain(paper) { calls.get() == 2 }
                 assertTrue(plugin.isEnabled)
                 hostReady.completeExceptionally(IllegalStateException("Host failed closed"))
                 paper.performTicks(2)
