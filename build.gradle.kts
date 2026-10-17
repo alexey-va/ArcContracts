@@ -190,6 +190,7 @@ tasks.shadowJar {
     exclude("ru/arc/contracts/api/**")
     exclude("ru/arc/paper/api/**")
     exclude("ru/arc/paper/packet/PaperVisualPacketRuntime*.class")
+    exclude("ru/arc/paper/runtime/PaperNativeCleanupServiceProvider*.class")
     exclude("ru/arc/paper/sql/PaperSqlServiceProvider*.class")
     exclude("ru/arc/paper/sql/SharedPaperSqlService*.class")
     exclude("ru/arc/paper/redis/PaperRedisServiceProvider*.class")

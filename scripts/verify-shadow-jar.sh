@@ -26,7 +26,7 @@ grep -Fxq 'main: ru.arc.contracts.ArcContractsPlugin' "$descriptor"
 grep -Fxq '  - ARC' "$descriptor"
 grep -Fxq 'kotlin/collections/CollectionsKt.class' "$entries"
 
-if grep -Eq '^(ru/arc/contracts/api/|ru/arc/paper/api/|ru/arc/paper/sql/(PaperSqlServiceProvider|SharedPaperSqlService)[^/]*\.class$|ru/arc/paper/redis/(PaperRedisServiceProvider|SharedPaperRedisService)[^/]*\.class$|ru/arc/paper/metrics/PaperArcMetricsProvider[^/]*\.class$|ru/arc/metrics/core/ArcMetricsRuntime[^/]*\.class$|ru/arc/contractfixture/|org/bukkit/|io/papermc/)' "$entries"; then
+if grep -Eq '^(ru/arc/contracts/api/|ru/arc/paper/api/|ru/arc/paper/packet/PaperVisualPacketRuntime[^/]*\.class$|ru/arc/paper/runtime/PaperNativeCleanupServiceProvider[^/]*\.class$|ru/arc/paper/sql/(PaperSqlServiceProvider|SharedPaperSqlService)[^/]*\.class$|ru/arc/paper/redis/(PaperRedisServiceProvider|SharedPaperRedisService)[^/]*\.class$|ru/arc/paper/metrics/PaperArcMetricsProvider[^/]*\.class$|ru/arc/metrics/core/ArcMetricsRuntime[^/]*\.class$|ru/arc/contractfixture/|org/bukkit/|io/papermc/)' "$entries"; then
   printf 'Production JAR embeds a host-owned API/provider, test fixture, or server-provided Paper class.\n' >&2
   exit 1
 fi
