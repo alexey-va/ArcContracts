@@ -57,7 +57,7 @@ internal class ContractsCommands(private val services: ServicesManager) {
                     "<gray>Идёт калибровка экономики. Первые ресурсные заказы появятся после чистого периода наблюдений.",
                 ),
             )
-            val weeklyBudget = (ContractsManager.summary()["serverWeeklyBudgetMinor"] as? Number)?.toLong() ?: 0L
+            val weeklyBudget = ContractsManager.serverWeeklyBudgetMinor()
             sender.sendMessage(
                 TextUtils.mm("<dark_gray>Недельный бюджет: <gray>${formatContractMoney(weeklyBudget)} <white>💰</white>"),
             )

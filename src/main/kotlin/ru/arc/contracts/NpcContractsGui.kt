@@ -26,17 +26,16 @@ object NpcContractsGui {
     private val groupPattern = Regex("[a-z0-9][a-z0-9_-]{2,47}")
     private val asyncGenerations = mutableMapOf<UUID, UUID>()
 
-    private val contractGuiConfig: Config by lazy {
-        ConfigManager.of(ContractsRuntime.legacyDataPath, "guis/contracts.yml")
-    }
+    private lateinit var contractGuiConfig: Config
 
     private var tracking: ContractTrackingRuntime? = null
     private var tasks: LifecycleTaskScope? = null
 
-    fun start() {
+    fun start(configuration: Config = ConfigManager.of(ContractsRuntime.legacyDataPath, "guis/contracts.yml")) {
         shutdown()
+        contractGuiConfig = configuration
         tasks = LifecycleTaskScope()
-        NpcContractDepositGui.start()
+        NpcContractDepositGui.start(configuration)
         val redis = ContractsRuntime.redis ?: return
         tracking = ContractTrackingRuntime(
             ContractsRuntime.plugin, RedisContractTrackingStore(redis, ContractsRuntime.gson),

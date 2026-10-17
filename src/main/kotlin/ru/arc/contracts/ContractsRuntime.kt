@@ -7,7 +7,10 @@ import ru.arc.logging.ArcLogging
 import ru.arc.logging.LoggingConfigSource
 import ru.arc.logging.LoggingModuleConfig
 import ru.arc.logging.paper.PaperLoggingPlatform
+import ru.arc.config.Config
 import ru.arc.config.ConfigManager
+import ru.arc.core.BoundedAsyncExecutor
+import java.util.concurrent.CompletableFuture
 import ru.arc.paper.api.ArcMetricsScope
 import ru.arc.paper.api.ArcMetricsService
 import ru.arc.paper.api.ArcTelemetryProvider
@@ -26,21 +29,37 @@ internal object ContractsRuntime {
     var redis: PaperRedisClient? = null
         private set
     private val metricSnapshotPublisher = ContractMetricSnapshotPublisher()
+    private var worker: BoundedAsyncExecutor? = null
+    @Volatile private var terminalDrain = CompletableFuture.completedFuture(Unit)
+    fun predecessorDrain(): CompletableFuture<Unit> = terminalDrain.copy()
+    fun recordDrain(actual: CompletableFuture<Unit>) { terminalDrain = actual }
+    @Volatile private var admissionReady = true // Offline/domain fixtures do not install a plugin worker.
+    fun installWorker(executor: BoundedAsyncExecutor) { worker = executor; admissionReady = false }
+    fun suspendAdmission() { admissionReady = false }
+    fun readyAdmission() { admissionReady = true }
+    fun isAdmissionReady(): Boolean = admissionReady
+    fun <T> background(operation: () -> T): CompletableFuture<T> =
+        worker?.submit(operation) ?: CompletableFuture.failedFuture(IllegalStateException("Contract worker is unavailable"))
 
-    val legacyDataPath get() = host.legacyDataPath()
-    val serverName get() = host.serverName()
+    private var capturedDataPath: java.nio.file.Path? = null
+    private var capturedServerName: String? = null
+    val legacyDataPath get() = capturedDataPath ?: host.legacyDataPath()
+    val serverName get() = capturedServerName ?: host.serverName()
 
     fun install(
         plugin: JavaPlugin,
         host: ArcContractsHostConfiguration,
         redis: PaperRedisClient?,
         metricsService: ArcMetricsService?,
+        logging: Config,
     ) {
         this.plugin = plugin
+        admissionReady = worker == null
         this.host = host
+        capturedDataPath = host.legacyDataPath()
+        capturedServerName = host.serverName()
         this.redis = redis
         metricSnapshotPublisher.attach(metricsService)
-        val logging = ConfigManager.ofModule(host.legacyDataPath(), LoggingModuleConfig.RESOURCE)
         val loggingConfig = LoggingModuleConfig(logging)
         ArcLogging.install(
             platform = PaperLoggingPlatform("ArcContracts", "ArcContracts"),
@@ -136,6 +155,8 @@ internal object ContractsRuntime {
     }
 
     fun close() {
+        suspendAdmission()
+        worker = null
         metricSnapshotPublisher.close()
         redis = null
     }
@@ -161,8 +182,9 @@ internal class ContractMetricSnapshotPublisher {
         lastKeys = null
     }
 
-    fun publish(snapshot: () -> Collection<MetricPoint>) = synchronized(lock) {
+    fun publish(snapshot: () -> Collection<MetricPoint>) {
         val points = snapshot()
+        synchronized(lock) {
         val keys = points.mapTo(mutableSetOf()) { point ->
             MetricKey(point.name, point.tags.toSortedMap().toList())
         }
@@ -174,6 +196,7 @@ internal class ContractMetricSnapshotPublisher {
         val currentScope = scope ?: return@synchronized
         points.forEach { point ->
             currentScope.gauge(point.name, point.description, point.tags).set(point.value)
+        }
         }
     }
 

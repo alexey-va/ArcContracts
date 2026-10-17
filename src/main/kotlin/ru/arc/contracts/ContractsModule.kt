@@ -112,6 +112,16 @@ object ContractsManager {
     private const val SEASON_MUTATION_RUNTIME_READY = false
 
     private val configRef = AtomicReference<ContractsConfig>()
+    @Volatile private var accepting = false
+    @Volatile private var readViews = emptyList<RuntimeResourceContractView>()
+    @Volatile private var readSummary = emptyMap<String, Any?>()
+    @Volatile private var readJournal = ContractSubmissionJournalSummary.unavailable()
+    private val refreshPending = java.util.concurrent.atomic.AtomicBoolean()
+
+    fun enabled(): Boolean = configRef.get()?.enabled == true
+    fun serverWeeklyBudgetMinor(): Long = configRef.get()?.serverWeeklyBudgetMinor ?: 0L
+    fun suspendAdmission() { accepting = false }
+
     private var repo: CachedRepository<ResourceContractRecord>? = null
     private var selectionRuntime: ContractSelectionRuntime? = null
     private var scope: CoroutineScope? = null
@@ -136,7 +146,7 @@ object ContractsManager {
     @Synchronized
     fun init() {
         if (repo != null || journalRepo != null) return
-        val loaded = ContractsConfig.load().validated(SEASON_MUTATION_RUNTIME_READY)
+        val loaded = ContractsConfig.fromSnapshot(ContractsRuntime.legacyDataPath).validated(SEASON_MUTATION_RUNTIME_READY)
         configRef.set(loaded)
         ContractOriginGate.configure(loaded)
         dungeonObserver.configure(loaded.observeSeasonCatalog(SEASON_MUTATION_RUNTIME_READY))
@@ -276,7 +286,7 @@ object ContractsManager {
             ContractsRuntime.serverName.ifBlank { "unknown" },
             loaded.resourceOrders().size,
         )
-        NpcContractsGui.start()
+        accepting = true
         publishMetrics()
     }
 
@@ -287,7 +297,7 @@ object ContractsManager {
             runCatching {
                 configRef.get()?.observeSeasonCatalog(SEASON_MUTATION_RUNTIME_READY)?.revisionDigest()
             }.getOrNull()
-        val loaded = ContractsConfig.load().validated(SEASON_MUTATION_RUNTIME_READY)
+        val loaded = ContractsConfig.fromSnapshot(ContractsRuntime.legacyDataPath).validated(SEASON_MUTATION_RUNTIME_READY)
         configRef.set(loaded)
         ContractOriginGate.configure(loaded)
         dungeonObserver.configure(loaded.observeSeasonCatalog(SEASON_MUTATION_RUNTIME_READY))
@@ -314,14 +324,14 @@ object ContractsManager {
                 ContractSubmissionJournalAudit.summarize(current.allNow().onEach { it.validated() }, System.currentTimeMillis())
             }
         }
-        if (currentRepo != null) NpcContractsGui.start()
+        accepting = currentRepo != null
         publishMetrics()
     }
 
     @JvmStatic
     @Synchronized
     fun shutdown() {
-        NpcContractsGui.shutdown()
+        accepting = false
         ContractOriginGate.clear()
         val currentSelection = selectionRuntime
         selectionRuntime = null
@@ -389,7 +399,7 @@ object ContractsManager {
     }
 
     @JvmStatic
-    fun isAvailable(): Boolean = repo != null && journalRepo != null
+    fun isAvailable(): Boolean = ContractsRuntime.isAdmissionReady() && accepting && repo != null && journalRepo != null
 
     @JvmStatic
     fun mode(): ContractsMode = configRef.get()?.mode ?: ContractsMode.DISABLED
@@ -559,18 +569,20 @@ object ContractsManager {
         check(Bukkit.isPrimaryThread()) { "Contract quotes must be created on the main thread" }
         if (!submissionsEnabled()) return null
         val now = System.currentTimeMillis()
-        val definition = definitionAt(contractId, now) ?: return null
+        val runtime = currentRuntimeViews(now).firstOrNull { it.definition.id == contractId } ?: return null
+        val definition = runtime.definition
         if (!ContractOriginGate.canSubmit(player, definition.group)) return null
         if (!seasonResourceStageOpen(definition)) return null
-        val state = repo?.getNow(ResourceContractRecord.stateId(definition.id, definition.windowStartsAt))?.state
-            ?: ResourceContractState.empty(definition)
-        val reservations = activeReservations(definition, state)
+        // The ready read model was fully validated on the worker. Submission later rechecks
+        // current state, all reservations and the cross-contract budget under submissionMutex.
+        val state = runtime.state
+        val reservations = runtime.reservations
         val policy = ContractRankPolicyResolver.resolve(player)
         var plan = ResourceContractEngine.plan(
             definition, state.validatedAgainst(definition), "quote-${UUID.randomUUID()}", player.uniqueId.toString(),
             requestedQuantity, now, reservations, policy,
         ) as? ContractSubmissionPlan.Accepted ?: return null
-        val networkBudget = remainingWeeklyBudget(now)
+        val networkBudget = (readSummary["remainingWeeklyBudgetMinor"] as? Number)?.toLong() ?: 0L
         if (plan.payoutMinor > networkBudget) {
             val quantity = ContractMarketPricing.affordableQuantity(definition,
                 state.acceptedQuantity + reservations.sumOf { it.quantity }, plan.acceptedQuantity, networkBudget, now, policy)
@@ -1000,7 +1012,12 @@ object ContractsManager {
         val view: ResourceContractView,
     )
 
-    private fun currentRuntimeViews(now: Long): List<RuntimeResourceContractView> {
+    private fun currentRuntimeViews(now: Long): List<RuntimeResourceContractView> = readViews.map { runtime ->
+        if (now < runtime.definition.windowEndsAt || runtime.view.status == ContractStatus.EXPIRED.label) runtime
+        else runtime.copy(view = runtime.view.copy(status = ContractStatus.EXPIRED.label))
+    }
+
+    private fun calculateRuntimeViews(now: Long): List<RuntimeResourceContractView> {
         val config = configRef.get() ?: return emptyList()
         val currentRepo = repo
         return currentDefinitions(config, now).map(::frozenDefinition).map { definition ->
@@ -1051,7 +1068,9 @@ object ContractsManager {
     }
 
     @JvmStatic
-    fun summary(): Map<String, Any?> {
+    fun summary(): Map<String, Any?> = readSummary
+
+    private fun calculateSummary(): Map<String, Any?> {
         val config = configRef.get()
         val views = currentViews()
         val currentSeasonState = seasonState()
@@ -1100,8 +1119,9 @@ object ContractsManager {
 
     @JvmStatic
     fun journalSummary(now: Long = System.currentTimeMillis()): ContractSubmissionJournalSummary {
-        val current = journalRepo ?: return ContractSubmissionJournalSummary.unavailable()
-        return ContractSubmissionJournalAudit.summarize(current.allNow(), now)
+        if (journalRepo == null) return ContractSubmissionJournalSummary.unavailable()
+        if (now < 0L) throw IllegalArgumentException("Journal audit timestamp must be non-negative")
+        return readJournal
     }
 
     @JvmStatic
@@ -1318,6 +1338,26 @@ object ContractsManager {
 
     @JvmStatic
     fun publishMetrics() {
+        if (!refreshPending.compareAndSet(false, true)) return
+        ContractsRuntime.background {
+            try {
+                refreshReadModels()
+            } finally { refreshPending.set(false) }
+        }.whenComplete { _, failure ->
+            if (failure != null) { refreshPending.set(false); ContractsRuntime.logError("Contract read model refresh failed", failure) }
+        }
+    }
+
+    /** Worker-only; ready getters never validate or decode persisted item payloads. */
+    internal fun refreshReadModels() {
+        readViews = calculateRuntimeViews(System.currentTimeMillis())
+        readJournal = journalRepo?.let { ContractSubmissionJournalAudit.summarize(it.allNow(), System.currentTimeMillis()) }
+            ?: ContractSubmissionJournalSummary.unavailable()
+        readSummary = calculateSummary()
+        publishPreparedMetrics()
+    }
+
+    private fun publishPreparedMetrics() {
         ContractsRuntime.publishMetrics {
             val config = configRef.get()
             ContractsMetrics.points(

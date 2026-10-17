@@ -3,9 +3,17 @@ package ru.arc.contracts.api;
 import net.kyori.adventure.text.Component;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 /** Narrow ARC-owned settings needed by the ArcContracts runtime. */
 public interface ArcContractsHostConfiguration {
+    /**
+     * Completion of the current ARC configuration generation. Capture the provider on the
+     * Paper thread, await this stage without blocking, then read the prepared settings.
+     * Exceptional completion keeps dependent gameplay unavailable.
+     */
+    CompletableFuture<Void> ready();
+
     /** Existing operator data directory; contract config and player state stay in legacy ARC paths. */
     Path legacyDataPath();
 

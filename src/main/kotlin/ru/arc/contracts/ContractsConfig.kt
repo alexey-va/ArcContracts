@@ -530,6 +530,8 @@ open class ContractsConfig(
         private val ID_PATTERN = Regex("[a-z0-9][a-z0-9_-]{2,63}")
         private val NAMESPACED_KEY_PATTERN = Regex("[a-z0-9_.-]+:[a-z0-9_./-]+")
 
+        fun fromSnapshot(dataPath: Path): ContractsConfig = ContractsConfig(Config(dataPath, "modules/contracts.yml"))
+
         fun fromFile(dataPath: Path): ContractsConfig =
             ContractsConfig(ConfigManager.of(dataPath, "modules/contracts.yml"))
 

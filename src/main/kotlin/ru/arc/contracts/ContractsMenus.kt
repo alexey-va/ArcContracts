@@ -33,10 +33,9 @@ internal object ContractsMenus {
     private var runtime: PaperMenuRuntime? = null
     private var dialogRuntime: PaperDialogRuntime? = null
 
-    fun initialize(plugin: Plugin, legacyDataRoot: Path) {
+    fun initialize(plugin: Plugin, legacyDataRoot: Path, configuration: ru.arc.paper.menu.PaperMenuConfiguration = ContractsMenuSchema.load(legacyDataRoot)) {
         requirePrimaryThread()
         check(runtime == null && dialogRuntime == null) { "ArcContracts menu runtime is already initialized" }
-        val configuration = ContractsMenuSchema.load(legacyDataRoot)
         val menuCandidate = PaperMenuRuntime(plugin, Tasks.scheduler, configuration)
         val dialogCandidate = try {
             PaperDialogRuntime(plugin)
@@ -49,10 +48,10 @@ internal object ContractsMenus {
         dialogRuntime = dialogCandidate
     }
 
-    fun reload() {
+    fun reload(configuration: ru.arc.paper.menu.PaperMenuConfiguration) {
         requirePrimaryThread()
         requireNotNull(runtime) { "ArcContracts menu runtime is not initialized" }
-            .replace(ContractsMenuSchema.load(requireNotNull(dataRoot)))
+            .replace(configuration)
     }
 
     fun current() = requireNotNull(runtime) { "ArcContracts menu runtime is not initialized" }.current()

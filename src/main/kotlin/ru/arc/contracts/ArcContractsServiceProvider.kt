@@ -14,7 +14,7 @@ internal class ArcContractsServiceProvider(
 
     override fun isAvailable(): Boolean = ContractsManager.isAvailable()
 
-    override fun isEnabled(): Boolean = (ContractsManager.summary()["enabled"] as? Boolean) == true
+    override fun isEnabled(): Boolean = ContractsManager.enabled()
 
     override fun reload() = plugin.reloadContracts()
 

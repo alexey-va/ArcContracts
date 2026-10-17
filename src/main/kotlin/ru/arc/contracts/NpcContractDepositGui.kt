@@ -29,7 +29,7 @@ object NpcContractDepositGui : Listener {
     private val sessions = mutableMapOf<UUID, Desk>()
     private val processing = mutableSetOf<UUID>()
     private var tasks: LifecycleTaskScope? = null
-    private val config get() = ConfigManager.of(ContractsRuntime.legacyDataPath, "guis/contracts.yml")
+    private lateinit var config: ru.arc.config.Config
     private class Desk(val player: Player, val group: String, val storage: ContractDeskStorage, val rows: Int) {
         lateinit var session: PaperCloudStorageSession
         val menu = ContractsMenuSchema.CONTRACT_DESKS.getValue(rows)
@@ -44,7 +44,8 @@ object NpcContractDepositGui : Listener {
         val review: Boolean,
         val rejection: Component?,
     )
-    fun start() {
+    fun start(configuration: ru.arc.config.Config = ConfigManager.of(ContractsRuntime.legacyDataPath, "guis/contracts.yml")) {
+        config = configuration
         tasks = LifecycleTaskScope()
         Bukkit.getPluginManager().registerEvents(this, ContractsRuntime.plugin)
         tasks?.runTimer(100, 100) { sessions.values.toList().forEach(::render) }

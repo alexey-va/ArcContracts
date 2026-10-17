@@ -48,7 +48,7 @@ class NpcContractDepositGuiTest {
         dataRoot = Files.createTempDirectory("arc-contracts-npc-menus")
         copyResource("guis/menus.yml", dataRoot.resolve("guis/menus.yml"))
         copyResource("guis/contracts.yml", dataRoot.resolve("guis/contracts.yml"))
-        ContractsRuntime.install(plugin, TestHostConfiguration(dataRoot), null, null)
+        ContractsRuntime.install(plugin, TestHostConfiguration(dataRoot), null, null, ru.arc.config.ConfigManager.empty())
         ContractsMenus.initialize(plugin, dataRoot)
     }
 
@@ -74,6 +74,7 @@ class NpcContractDepositGuiTest {
     }
 
     private class TestHostConfiguration(private val dataRoot: Path) : ArcContractsHostConfiguration {
+        override fun ready(): java.util.concurrent.CompletableFuture<Void> = java.util.concurrent.CompletableFuture.completedFuture(null)
         override fun legacyDataPath(): Path = dataRoot
         override fun serverName(): String = "test-server"
         override fun sharedRedisAvailable(): Boolean = false
