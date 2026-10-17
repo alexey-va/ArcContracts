@@ -29,10 +29,10 @@ internal class ContractsCommands(private val services: ServicesManager) {
     }
 
     fun complete(sender: CommandSender, args: Array<String>): List<String> = when (args.size) {
-        1 -> listOf("open", "status", "donate", "pass", "launch", "trophy").matching(args[0])
-        2 -> when (args[0].lowercase()) {
-            "donate" -> ContractsManager.seasonProjectStageIds().matching(args[1])
-            "pass", "launch" -> ContractsManager.seasonDungeonContractIds().matching(args[1])
+        1 -> (if (sender is Player) listOf("open", "status", "donate", "pass", "launch", "trophy") else listOf("status")).matching(args[0])
+        2 -> if (sender !is Player) emptyList() else when (args[0].lowercase()) {
+            "donate", "вклад" -> ContractsManager.seasonProjectStageIds().matching(args[1])
+            "pass", "пропуск", "launch", "экспедиция" -> ContractsManager.seasonDungeonContractIds().matching(args[1])
             else -> emptyList()
         }
         else -> emptyList()
