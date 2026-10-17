@@ -8,19 +8,51 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
+import java.util.logging.Level;
 
 /** CI-only fault-injection bootstrap; the production shadow JAR never includes this source set. */
 public final class ContractCrashFixturePlugin extends JavaPlugin {
     private static final String RUNNER_CLASS = "ru.arc.contractfixture.runner.ContractCrashFixtureRunner";
     private AutoCloseable runner;
     private RunnerClassLoader runnerLoader;
+    private volatile Object generation;
 
     @Override
     public void onEnable() {
+        Object owner = new Object();
+        generation = owner;
         Plugin contracts = getServer().getPluginManager().getPlugin("ArcContracts");
         if (contracts == null || !contracts.isEnabled()) {
             throw new IllegalStateException("Contract crash fixture requires enabled ArcContracts");
         }
+        Plugin fixture = getServer().getPluginManager().getPlugin("ARCContractTestFixture");
+        if (fixture == null || !fixture.isEnabled() || !(fixture instanceof Supplier<?> supplier)
+                || !(supplier.get() instanceof CompletionStage<?> readiness)) {
+            throw new IllegalStateException("Contract crash fixture requires primary fixture readiness");
+        }
+        readiness.whenComplete((ignored, failure) -> {
+            if (generation != owner) return;
+            getServer().getScheduler().runTask(this, () -> {
+                if (generation != owner || !isEnabled()) return;
+                if (failure != null) {
+                    getLogger().log(Level.SEVERE, "Primary contract fixture preparation failed", failure);
+                    getServer().getPluginManager().disablePlugin(this);
+                    return;
+                }
+                try {
+                    startRunner();
+                } catch (Throwable startupFailure) {
+                    getLogger().log(Level.SEVERE, "Could not prepare isolated CI contract crash fixture", startupFailure);
+                    getServer().getPluginManager().disablePlugin(this);
+                }
+            });
+        });
+    }
+
+    private void startRunner() {
+        Plugin contracts = Objects.requireNonNull(getServer().getPluginManager().getPlugin("ArcContracts"));
         URL fixtureJar = Objects.requireNonNull(
                 ContractCrashFixturePlugin.class.getProtectionDomain().getCodeSource(),
                 "Fixture JAR code source is unavailable")
@@ -47,6 +79,7 @@ public final class ContractCrashFixturePlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        generation = null;
         closeRunner();
     }
 
