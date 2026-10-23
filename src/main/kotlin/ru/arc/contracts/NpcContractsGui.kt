@@ -413,8 +413,10 @@ object NpcContractsGui {
             title = dialogText(group, "confirm.title", "<#f4d87a><bold>Подтверждение сдачи"),
             body = listOf(
                 PaperDialogBody(dialogText(group, "confirm.intro", "<#e8dfd2>Проверьте точное количество и выплату. Перед сдачей условия будут сверены ещё раз."), BODY_WIDTH),
-                DialogTables.body(rows, frame = DialogTables.Frame.LEGENDARY, width = TABLE_WIDTH,
-                    columns = DialogTables.Columns.BALANCED),
+                DialogTables.filledBody(
+                    rows = rows.map { (label, value) -> listOf(label.append(light(": ", BODY_COLOR)).append(value)) },
+                    headers = null, width = TABLE_WIDTH, columnWeights = listOf(1),
+                ),
             ),
             buttons = listOf(PaperDialogButton(
                 action("submit"),
