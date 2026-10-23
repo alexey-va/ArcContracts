@@ -414,8 +414,8 @@ object NpcContractsGui {
             body = listOf(
                 PaperDialogBody(dialogText(group, "confirm.intro", "<#e8dfd2>Проверьте точное количество и выплату. Перед сдачей условия будут сверены ещё раз."), BODY_WIDTH),
                 DialogTables.filledBody(
-                    rows = rows.map { (label, value) -> listOf(label.append(light(": ", BODY_COLOR)).append(value)) },
-                    headers = null, width = TABLE_WIDTH, columnWeights = listOf(1),
+                    rows = rows.map { (label, value) -> listOf(label, value) },
+                    headers = null, width = TABLE_WIDTH, columnWeights = listOf(1, 1),
                 ),
             ),
             buttons = listOf(PaperDialogButton(
