@@ -162,7 +162,7 @@ object NpcContractsGui {
         pageEntries.forEachIndexed { index, entry ->
             buttons += PaperDialogButton(
                 action("order_$index"),
-                light("○ ${plainName(entry.view)} ›", WHITE),
+                light("${plainName(entry.view)} ›", WHITE),
                 orderTooltip(entry),
                 width = HALF_BUTTON_WIDTH,
             ) { showDetail(player, group, entry.view.contract.id, null) }

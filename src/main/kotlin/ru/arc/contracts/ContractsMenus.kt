@@ -14,7 +14,6 @@ import ru.arc.menu.MenuTemplateId
 import ru.arc.paper.menu.PaperCloudStorage
 import ru.arc.paper.menu.PaperCloudStorageContent
 import ru.arc.paper.menu.PaperCloudStorageSession
-import ru.arc.paper.menu.PaperDialogButton
 import ru.arc.paper.menu.PaperDialogRuntime
 import ru.arc.paper.menu.PaperDialogScreen
 import ru.arc.paper.menu.PaperMenuClickContext
@@ -67,7 +66,6 @@ internal object ContractsMenus {
     fun openDialog(
         player: Player,
         screen: PaperDialogScreen,
-        closeButton: PaperDialogButton? = null,
         reopen: (() -> Unit)? = null,
         onDismiss: () -> Unit = {},
     ) {
