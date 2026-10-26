@@ -124,6 +124,7 @@ object ContractsManager {
 
     private var repo: CachedRepository<ResourceContractRecord>? = null
     private var selectionRuntime: ContractSelectionRuntime? = null
+    private var discardedCleanupFailure: Throwable? = null
     private var scope: CoroutineScope? = null
     private var journalRepo: CachedRepository<ContractSubmissionJournalRecord>? = null
     private var journalScope: CoroutineScope? = null
@@ -146,6 +147,7 @@ object ContractsManager {
     @Synchronized
     fun init() {
         if (repo != null || journalRepo != null) return
+        check(discardedCleanupFailure == null) { "Previous contract startup cleanup failed; terminal shutdown must report it before retry" }
         val loaded = ContractsConfig.fromSnapshot(ContractsRuntime.legacyDataPath).validated(SEASON_MUTATION_RUNTIME_READY)
         configRef.set(loaded)
         ContractOriginGate.configure(loaded)
@@ -196,9 +198,11 @@ object ContractsManager {
                     saveInterval(1.seconds)
                 }
             } catch (failure: Throwable) {
-                runBlocking { newRepo.shutdown() }
-                newScope.cancel()
-                newJournalScope.cancel()
+                discardFailedStartup(failure,
+                    { runBlocking { newRepo.shutdown() } },
+                    { newScope.cancel() },
+                    { newJournalScope.cancel() },
+                )
                 throw failure
             }
         try {
@@ -267,17 +271,14 @@ object ContractsManager {
             seasonDungeonRewardJournalRepo = seasonRuntime?.dungeonRewardJournalRepository
             seasonDungeonRewardCoordinator = seasonRuntime?.dungeonRewardCoordinator
         } catch (failure: Throwable) {
-            runCatching { selectionRuntime?.close() }.onFailure { ContractsRuntime.logError("Contract selection cleanup failed", it) }
-            selectionRuntime = null
-            runBlocking {
-                try {
-                    newJournalRepo.shutdown()
-                } finally {
-                    newRepo.shutdown()
-                }
-            }
-            newScope.cancel()
-            newJournalScope.cancel()
+            val discardedSelection = selectionRuntime.also { selectionRuntime = null }
+            discardFailedStartup(failure,
+                { discardedSelection?.close() },
+                { runBlocking { newJournalRepo.shutdown() } },
+                { runBlocking { newRepo.shutdown() } },
+                { newScope.cancel() },
+                { newJournalScope.cancel() },
+            )
             throw failure
         }
         ContractsRuntime.info(
@@ -288,6 +289,18 @@ object ContractsManager {
         )
         accepting = true
         publishMetrics()
+    }
+
+    /** Failed startup has no published repository owner; carry cleanup errors into the terminal drain. */
+    private fun discardFailedStartup(startupFailure: Throwable, vararg cleanup: () -> Unit) {
+        cleanup.forEach { close ->
+            try { close() } catch (failure: Throwable) {
+                val previous = discardedCleanupFailure
+                if (previous == null) discardedCleanupFailure = failure
+                else if (previous !== failure) previous.addSuppressed(failure)
+                if (startupFailure !== failure) startupFailure.addSuppressed(failure)
+            }
+        }
     }
 
     @JvmStatic
@@ -332,10 +345,18 @@ object ContractsManager {
     @Synchronized
     fun shutdown() {
         accepting = false
-        ContractOriginGate.clear()
+        var failure = discardedCleanupFailure.also { discardedCleanupFailure = null }
+        fun record(error: Throwable) {
+            val previous = failure
+            if (previous == null) failure = error else if (previous !== error) previous.addSuppressed(error)
+        }
+        fun attempt(close: () -> Unit) {
+            try { close() } catch (error: Throwable) { record(error) }
+        }
+        attempt { ContractOriginGate.clear() }
         val currentSelection = selectionRuntime
         selectionRuntime = null
-        runCatching { currentSelection?.close() }.onFailure { ContractsRuntime.logError("Contract selection shutdown failed", it) }
+        attempt { currentSelection?.close() }
         val currentRepo = repo
         val currentScope = scope
         val currentJournalRepo = journalRepo
@@ -364,38 +385,21 @@ object ContractsManager {
         seasonDungeonRewardJournalRepo = null
         seasonDungeonRewardCoordinator = null
         submissionMutex = Mutex()
-        dungeonObserver.configure(null)
-        currentSubmissionScope?.cancel()
-        currentSeasonScope?.cancel()
-        try {
+        attempt { dungeonObserver.configure(null) }
+        attempt { currentSubmissionScope?.cancel() }
+        attempt { currentSeasonScope?.cancel() }
+        attempt {
             runBlocking {
-                try {
-                    try {
-                        try {
-                            try {
-                                currentSeasonDungeonRewardJournalRepo?.shutdown()
-                            } finally {
-                                currentSeasonTrophyJournalRepo?.shutdown()
-                            }
-                        } finally {
-                            currentSeasonJournalRepo?.shutdown()
-                        }
-                    } finally {
-                        currentSeasonStateRepo?.shutdown()
-                    }
-                } finally {
-                    try {
-                        currentJournalRepo?.shutdown()
-                    } finally {
-                        currentRepo?.shutdown()
-                    }
+                for (repository in listOf(currentSeasonDungeonRewardJournalRepo, currentSeasonTrophyJournalRepo,
+                    currentSeasonJournalRepo, currentSeasonStateRepo, currentJournalRepo, currentRepo)) {
+                    try { repository?.shutdown() } catch (error: Throwable) { record(error) }
                 }
             }
-        } finally {
-            currentScope?.cancel()
-            currentJournalScope?.cancel()
-            currentSeasonRepositoryScope?.cancel()
         }
+        attempt { currentScope?.cancel() }
+        attempt { currentJournalScope?.cancel() }
+        attempt { currentSeasonRepositoryScope?.cancel() }
+        failure?.let { throw it }
     }
 
     @JvmStatic

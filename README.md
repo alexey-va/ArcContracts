@@ -36,4 +36,4 @@ fixed headroom. Snapshot calculation and publication serialize with reload;
 unchanged metric keys reuse their handles, while a changed key set closes and
 reopens the scope so old status and removed-contract series are removed.
 
-For composite development, set `arcCoreDir` to a local `arc-core` checkout. CI resolves the immutable `2.7.23` release.
+For composite development, set `arcCoreDir` to a local `arc-core` checkout. CI resolves the immutable `2.7.69` release.

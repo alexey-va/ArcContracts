@@ -1,6 +1,5 @@
 package ru.arc.contracts
 
-import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
 import org.bukkit.plugin.ServicePriority
 import org.bukkit.plugin.java.JavaPlugin
@@ -20,6 +19,8 @@ import ru.arc.paper.api.ArcMetricsService
 import ru.arc.paper.metrics.PaperArcMetrics
 import ru.arc.paper.redis.PaperRedisClient
 import ru.arc.paper.runtime.PaperPluginRuntime
+import ru.arc.paper.runtime.PaperPluginHotload
+import java.util.concurrent.CompletableFuture
 
 open class ArcContractsPlugin : JavaPlugin() {
     private var lifecycle: PaperPluginRuntime? = null
@@ -33,8 +34,11 @@ open class ArcContractsPlugin : JavaPlugin() {
     private var npcAccess: Listener? = null
     private var serviceProvider: ArcContractsService? = null
     private var serviceRegistered = false
+    private val hotload = PaperPluginHotload(this, ::stopRuntime)
 
     override fun onEnable() {
+        hotload.beginGeneration()
+        hotload.register()
         PaperArcRuntime.installScheduling(this)
         stopped = false
         preparing = true
@@ -61,7 +65,10 @@ open class ArcContractsPlugin : JavaPlugin() {
         prepareRuntime(false)
     }
 
-    override fun onDisable() { closeRuntime() }
+    override fun onDisable() {
+        hotload.prepare()
+        hotload.close()
+    }
 
     internal fun reloadContracts() {
         check(Bukkit.isPrimaryThread()) { "ArcContracts reload must run on the primary server thread" }
@@ -160,44 +167,46 @@ open class ArcContractsPlugin : JavaPlugin() {
         }
     }
 
-    private fun closeRuntime() {
-        if (stopped && lifecycle == null && worker == null) return
-        val executor = worker
-        worker = null
-        val client = redisClient
-        if (serviceRegistered) {
-            serviceProvider?.let { server.servicesManager.unregister(ArcContractsService::class.java, it) }
-            serviceRegistered = false
+    private fun stopRuntime(): Map<String, CompletableFuture<*>> {
+        var failure: Throwable? = null
+        fun attempt(close: () -> Unit) {
+            try { close() } catch (problem: Throwable) {
+                if (failure == null) failure = problem else failure.addSuppressed(problem)
+                logger.log(java.util.logging.Level.SEVERE, "Contract runtime cleanup failed", problem)
+            }
         }
-        serviceProvider = null
+        val executor = worker.also { worker = null }
+        val client = redisClient.also { redisClient = null }
         stopped = true
-        ContractsRuntime.suspendAdmission()
-        ContractsManager.suspendAdmission()
-        NpcContractsGui.shutdown()
-        listOfNotNull(npcAccess, trophyProtection).forEach { listener ->
-            runCatching { HandlerList.unregisterAll(listener) }
-                .onFailure { ArcLogging.warn("Contract listener cleanup failed", it) }
-        }
+        preparing = false
+        attempt { ContractsRuntime.suspendAdmission() }
+        attempt { ContractsManager.suspendAdmission() }
+        attempt { server.servicesManager.unregisterAll(this) }
+        serviceRegistered = false
+        serviceProvider = null
+        attempt { NpcContractsGui.shutdown() }
         npcAccess = null
         trophyProtection = null
-        runCatching { ContractsMenus.close() }
-            .onFailure { ArcLogging.warn("Contract menu runtime cleanup failed", it) }
-        runCatching { lifecycle?.close() }
-            .onFailure { ArcLogging.warn("Contract lifecycle cleanup failed", it) }
+        attempt { ContractsMenus.close() }
+        attempt { lifecycle?.close() }
         lifecycle = null
-        if (executor != null) {
-            val actualDrain = executor.closeAsync {
+        val storage = try {
+            executor?.closeAsync {
                 try { ContractsModule.shutdown() }
                 finally { client?.close() }
-            }
-            closeCompletion = actualDrain
-            runCatching { actualDrain.get() }
-                .onFailure { logger.log(java.util.logging.Level.SEVERE, "Contract terminal flush failed", it) }
-        }
-        redisClient = null
-        runCatching { ContractsRuntime.close() }
-            .onFailure { ArcLogging.warn("Contract runtime cleanup failed", it) }
+            } ?: CompletableFuture.completedFuture(Unit)
+        } catch (problem: Throwable) { CompletableFuture.failedFuture(problem) }
+        // The existing maintenance drain contains detached storage work only.
+        attempt { storage.join() }
+        attempt { ContractsRuntime.close() }
+        attempt { hotload.retireGameplayRegistrations() }
+        attempt { ru.arc.logging.ArcLogging.close() }
+        val native = failure?.let { CompletableFuture.failedFuture<Unit>(it) }
+            ?: CompletableFuture.completedFuture(Unit)
+        closeCompletion = CompletableFuture.allOf(storage, native).thenApply { Unit }
+        return linkedMapOf("storage" to storage, "runtime" to native)
     }
+
 }
 
 private const val CONTRACTS_HEALTH_REPORT_PERIOD_TICKS = 1_200L
