@@ -43,6 +43,7 @@ menus:
         previous: { slot: 45, template: contract-desk-previous }
         sell: { slot: 4, template: contract-desk-sell }
         next: { slot: 48, template: contract-desk-next }
+        weekly-top: { slot: 49, template: contract-desk-weekly-top }
       regions:
         contract-orders: { slots: ['0-3', '9-12', '18-21', '27-30', '36-39', '46-47'] }
         contract-deposit: { slots: ['5-8', '14-17', '23-26', '32-35', '41-44', '50-53'] }
@@ -83,6 +84,7 @@ menus:
       material: PAPER
       name: '<italic:false><#ffcd70><bold><name>'
       lore:
+        - '<italic:false>'
         - '<italic:false><#e6fff3><accepted>'
         - '<italic:false>'
         - '<italic:false><#b8b8b8>За штуку: <#ffcd70><price> <white>💰</white>'
@@ -90,8 +92,13 @@ menus:
         - '<italic:false><#b8b8b8>Изменение цены: <growth> от базовой'
         - '<italic:false><#b8b8b8>Бонус ранга: <white><rank>'
         - '<italic:false><#b8b8b8>Ваш остаток: <white><remaining> шт.'
+        - '<italic:false><#b8b8b8>Сдано всего: <white><accepted-total> / <target> шт.'
+        - '<italic:false><#b8b8b8>Вы сдали: <white><personal-accepted> шт.'
         - '<italic:false>'
         - '<italic:false><state>'
+        - '<italic:false>'
+        - '<italic:false><#ffcd70>Топ недели по этому заказу'
+        - { repeat: weekly-leaders, text: '<italic:false><line>' }
     contract-desk-info:
       material: HOPPER
       name: '<italic:false><#92bed8><bold>Сдача заказов'
@@ -120,6 +127,15 @@ menus:
       material: BLUE_STAINED_GLASS_PANE
       custom-model-data: 11008
       name: '<italic:false><#92bed8>Следующая страница ›'
+    contract-desk-weekly-top:
+      material: GOLD_INGOT
+      name: '<italic:false><#f4d87a><bold>Топ поставщиков недели'
+      lore:
+        - '<italic:false>'
+        - '<italic:false><#e6fff3>Кто сколько предметов сдал'
+        - '<italic:false><#e6fff3>во все контракты этой недели.'
+        - '<italic:false>'
+        - '<italic:false><#8c8c8c>[<#92bed8>▶<#8c8c8c>] <#92bed8>ЛКМ <#b8b8b8>— посмотреть топ'
     background:
       material: GRAY_STAINED_GLASS_PANE
       custom-model-data: 11000

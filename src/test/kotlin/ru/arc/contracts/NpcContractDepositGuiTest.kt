@@ -2,6 +2,7 @@ package ru.arc.contracts
 
 import io.kotest.matchers.shouldBe
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
@@ -26,7 +27,9 @@ import ru.arc.contracts.api.ArcContractsHostConfiguration
 import ru.arc.core.PaperArcRuntime
 import ru.arc.core.Tasks
 import ru.arc.paper.playerstate.NativePaperPlayerDataPersistence
+import ru.arc.paper.player.PaperOfflinePlayerData
 import ru.arc.paper.testing.MockBukkitTestRuntime
+import ru.arc.paper.menu.PaperDialogScreen
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Comparator
@@ -50,11 +53,17 @@ class NpcContractDepositGuiTest {
         copyResource("guis/contracts.yml", dataRoot.resolve("guis/contracts.yml"))
         ContractsRuntime.install(plugin, TestHostConfiguration(dataRoot), null, null, ru.arc.config.ConfigManager.empty())
         ContractsMenus.initialize(plugin, dataRoot)
+        mockkObject(ContractWeeklyLeaderboardGui)
+        every { ContractWeeklyLeaderboardGui.load(any(), any()) } returns CompletableFuture.completedFuture(
+            ContractWeeklyLeaderboardGui.Loaded(ContractWeeklyLeaderboard(
+                ContractRotation.weekStart(System.currentTimeMillis()), emptyList(), emptyMap()), 0, emptyMap()),
+        )
     }
 
     @AfterEach
     fun closeContractMenus() {
         NpcContractDepositGui.shutdown()
+        unmockkObject(ContractWeeklyLeaderboardGui)
         ContractsMenus.close()
         ContractsRuntime.close()
         Tasks.reset()
@@ -83,6 +92,90 @@ class NpcContractDepositGuiTest {
     }
 
     @Test
+    fun `completed selected orders stay as barriers with their own weekly leaders and cannot be submitted`() {
+        val player = server.addPlayer("Visitor")
+        val orderLeader = server.addPlayer("StoneLeader")
+        val globalLeader = server.addPlayer("GlobalLeader")
+        val base = foodOrder(playerRemaining = 0)
+        val completed = base.copy(contract = base.contract.copy(status = ContractStatus.COMPLETED.label,
+            acceptedQuantity = 1536, remainingQuantity = 0), playerAcceptedQuantity = 10)
+        every { ContractWeeklyLeaderboardGui.load(any(), any()) } returns CompletableFuture.completedFuture(
+            ContractWeeklyLeaderboardGui.Loaded(ContractWeeklyLeaderboard(
+                ContractRotation.weekStart(System.currentTimeMillis()),
+                listOf(ContractWeeklyLeaderboard.Entry(globalLeader.uniqueId.toString(), 9000)),
+                mapOf(completed.contract.id to listOf(ContractWeeklyLeaderboard.Entry(orderLeader.uniqueId.toString(), 1500))),
+            ), 0, emptyMap()),
+        )
+        mockkObject(ContractOriginGate, NativePaperPlayerDataPersistence)
+        mockkStatic(ContractsManager::class)
+        var submissionCalls = 0
+        try {
+            every { ContractOriginGate.canSubmit(player, "food_orders") } returns true
+            every { NativePaperPlayerDataPersistence.persist(player) } returns Unit
+            every { ContractsManager.currentPlayerViews(player.uniqueId, "food_orders", any(), any()) } returns listOf(completed)
+            every { ContractsManager.quote(player, any(), any()) } returns null
+            every { ContractsManager.submit(player, any(), null, any()) } answers {
+                submissionCalls++
+                CompletableFuture.completedFuture(ContractSubmissionOutcome.Unavailable("unexpected"))
+            }
+            NpcContractDepositGui.start(offlinePlayers = PaperOfflinePlayerData(dataRoot))
+            NpcContractDepositGui.open(player, "food_orders")
+            server.scheduler.performTicks(2)
+            val view = player.openInventory
+            val item = view.topInventory.getItem(0)!!
+            item.type shouldBe Material.BARRIER
+            item.plainDisplayName() shouldBe "Коричневые грибы"
+            val lore = item.plainLore().joinToString("\n")
+            lore.contains("Сейчас недоступен") shouldBe true
+            lore.contains("1536 / 1536") shouldBe true
+            lore.contains("Вы сдали: 10") shouldBe true
+            lore.contains("StoneLeader — 1500") shouldBe true
+            lore.contains("GlobalLeader") shouldBe false
+            view.topInventory.getItem(49)!!.plainDisplayName() shouldBe "Топ поставщиков недели"
+            view.setCursor(ItemStack(Material.BROWN_MUSHROOM, 8))
+            server.pluginManager.callEvent(InventoryClickEvent(view, InventoryType.SlotType.CONTAINER,
+                5, ClickType.LEFT, InventoryAction.PLACE_ALL))
+            server.pluginManager.callEvent(InventoryClickEvent(view, InventoryType.SlotType.CONTAINER,
+                4, ClickType.LEFT, InventoryAction.PICKUP_ALL))
+            server.scheduler.performTicks(2)
+            submissionCalls shouldBe 0
+            view.topInventory.getItem(5) shouldBe ItemStack(Material.BROWN_MUSHROOM, 8)
+            exportContractPreview("completed-order", mapOf(
+                "name" to previewText(item.itemMeta.displayName()!!),
+                "lore" to item.itemMeta.lore()!!.map(::previewText), "material" to item.type.name,
+            ))
+            every { ContractWeeklyLeaderboardGui.load(any(), any()) } returns CompletableFuture.failedFuture(IllegalStateException("fixture refresh failure"))
+            server.scheduler.performTicks(101)
+            val unavailableLore = view.topInventory.getItem(0)!!.plainLore().joinToString("\n")
+            unavailableLore.contains("Топ временно недоступен") shouldBe true
+            unavailableLore.contains("StoneLeader") shouldBe false
+            every { ContractWeeklyLeaderboardGui.load(any(), any()) } returns CompletableFuture.completedFuture(
+                ContractWeeklyLeaderboardGui.Loaded(ContractWeeklyLeaderboard(
+                    ContractRotation.weekStart(System.currentTimeMillis()), emptyList(), emptyMap()), 0, emptyMap()),
+            )
+            var leaderboard: PaperDialogScreen? = null
+            mockkObject(ContractsMenus)
+            every { ContractsMenus.openDialog(player, any(), any(), any()) } answers {
+                leaderboard = secondArg()
+            }
+            server.pluginManager.callEvent(InventoryClickEvent(view, InventoryType.SlotType.CONTAINER,
+                49, ClickType.LEFT, InventoryAction.PICKUP_ALL))
+            server.scheduler.performTicks(2)
+            ContractDeskStorage(player, "food_orders", { false }).snapshot().all { it == null } shouldBe true
+            player.inventory.contents.filterNotNull().filter { it.type == Material.BROWN_MUSHROOM }.sumOf { it.amount } shouldBe 8
+            leaderboard!!.buttons.first().onClick.handle(mockk())
+            player.openInventory.topInventory.size shouldBe 54
+            player.openInventory.topInventory.getItem(0)!!.type shouldBe Material.BARRIER
+            unmockkObject(ContractsMenus)
+        } finally {
+            NpcContractDepositGui.shutdown()
+            unmockkObject(ContractOriginGate, NativePaperPlayerDataPersistence)
+            unmockkStatic(ContractsManager::class)
+            unmockkObject(ContractsMenus)
+        }
+    }
+
+    @Test
     @Suppress("DEPRECATION") // Verify the existing integer custom-model-data contract used by the resource pack.
     fun `all NPC groups stage input then sell only offered items and keep the same chest open`() {
         val player = server.addPlayer()
@@ -91,7 +184,7 @@ class NpcContractDepositGuiTest {
         mockkStatic(ContractsManager::class)
         try {
             server.scheduler.cancelTasks(plugin) // Isolate the desk from unrelated boot-time NPC tasks.
-            NpcContractDepositGui.start()
+            NpcContractDepositGui.start(offlinePlayers = PaperOfflinePlayerData(dataRoot))
             for (group in listOf("food_orders", "forge_orders", "bank_orders", "guild_orders")) {
                 val definition = ResourceContractDefinition("order_$group", "Треска", "minecraft:cod",
                     ContractFunding.SERVER_ENVELOPE, 1000, Long.MAX_VALUE, 100, 500_000, 1536, 1536,
@@ -120,6 +213,7 @@ class NpcContractDepositGuiTest {
                 player.inventory.clear()
                 player.inventory.setItem(0, ItemStack(Material.COD, 64)) // Unoffered stock must remain.
                 NpcContractDepositGui.open(player, group)
+                server.scheduler.performTicks(1) // Complete the independent, read-only leaderboard refresh.
                 val inventoryView = player.openInventory
                 val top = inventoryView.topInventory
                 top.size shouldBe 54
@@ -149,7 +243,7 @@ class NpcContractDepositGuiTest {
                 fun clickPage(slot: Int) {
                     server.pluginManager.callEvent(InventoryClickEvent(inventoryView,
                         InventoryType.SlotType.CONTAINER, slot, ClickType.LEFT, InventoryAction.PICKUP_ALL))
-                    server.scheduler.performTicks(1)
+                    server.scheduler.performTicks(2) // Core dispatches the click, then the top completes on its own tick.
                 }
                 assertArrows()
                 val firstOrder = top.getItem(0)!!.clone()
@@ -222,7 +316,7 @@ class NpcContractDepositGuiTest {
         mockkStatic(ContractsManager::class)
         try {
             server.scheduler.cancelTasks(plugin)
-            NpcContractDepositGui.start()
+            NpcContractDepositGui.start(offlinePlayers = PaperOfflinePlayerData(dataRoot))
             every { ContractOriginGate.canSubmit(player, "food_orders") } returns true
             every { ContractsManager.currentPlayerViews(player.uniqueId, "food_orders", any(), any()) } answers {
                 listOf(foodOrder(playerRemaining = 0))
@@ -282,7 +376,7 @@ class NpcContractDepositGuiTest {
         mockkStatic(ContractsManager::class)
         try {
             server.scheduler.cancelTasks(plugin)
-            NpcContractDepositGui.start()
+            NpcContractDepositGui.start(offlinePlayers = PaperOfflinePlayerData(dataRoot))
             every { ContractOriginGate.canSubmit(player, "food_orders") } returns true
             every { ContractsManager.currentPlayerViews(player.uniqueId, "food_orders", any(), any()) } returns
                 listOf(foodOrder(playerRemaining = 10))
@@ -382,7 +476,7 @@ class NpcContractDepositGuiTest {
         mockkStatic(ContractsManager::class)
         try {
             server.scheduler.cancelTasks(plugin)
-            NpcContractDepositGui.start()
+            NpcContractDepositGui.start(offlinePlayers = PaperOfflinePlayerData(dataRoot))
             every { ContractOriginGate.canSubmit(player, "food_orders") } returns true
             every { ContractsManager.currentPlayerViews(player.uniqueId, "food_orders", any(), any()) } returns orders
             every { ContractsManager.quote(player, any(), any()) } answers {
@@ -452,7 +546,7 @@ class NpcContractDepositGuiTest {
         mockkStatic(ContractsManager::class)
         try {
             server.scheduler.cancelTasks(plugin)
-            NpcContractDepositGui.start()
+            NpcContractDepositGui.start(offlinePlayers = PaperOfflinePlayerData(dataRoot))
             every { ContractOriginGate.canSubmit(player, "food_orders") } returns true
             every { ContractsManager.currentPlayerViews(player.uniqueId, "food_orders", any(), any()) } answers {
                 listOf(foodOrder(playerRemaining = playerRemaining))

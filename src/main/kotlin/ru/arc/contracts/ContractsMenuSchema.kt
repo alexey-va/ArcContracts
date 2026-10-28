@@ -45,7 +45,8 @@ internal object ContractsMenuSchema {
     val contracts: Map<MenuId, MenuContract> = linkedMapOf(
         *CONTRACT_DESKS.values.map { menu ->
             menu to MenuContract(
-                requiredElements = elements("sell", "previous", "next"),
+                requiredElements = if (menu == CONTRACT_DESKS.getValue(6)) elements("sell", "previous", "next", "weekly-top")
+                    else elements("sell", "previous", "next"),
                 requiredRegions = setOf(CONTRACT_DEPOSIT, CONTRACT_DESK_ORDERS),
             )
         }.toTypedArray(),
@@ -62,13 +63,17 @@ internal object ContractsMenuSchema {
 
     val textContracts: Map<String, PaperMenuTextContract> = mapOf(
         "contract-desk-info" to PaperMenuTextContract(values = setOf("status", "page")),
-        "contract-desk-order" to PaperMenuTextContract(values = setOf("name", "accepted", "price", "base", "growth", "rank", "remaining", "state")),
+        "contract-desk-order" to PaperMenuTextContract(
+            values = setOf("name", "accepted", "price", "base", "growth", "rank", "remaining", "state", "accepted-total", "target", "personal-accepted"),
+            repeats = mapOf("weekly-leaders" to setOf("line")),
+        ),
         "contract-desk-sell" to PaperMenuTextContract(
             values = setOf("name", "status", "page"), repeats = mapOf("details" to setOf("line")),
         ),
         "contract-desk-empty" to PaperMenuTextContract(),
         "contract-desk-previous" to PaperMenuTextContract(),
         "contract-desk-next" to PaperMenuTextContract(),
+        "contract-desk-weekly-top" to PaperMenuTextContract(),
         "contracts-list-info" to PaperMenuTextContract(values = setOf("heading", "description-one", "description-two")),
         "contracts-list-empty" to PaperMenuTextContract(values = setOf("empty")),
         "contracts-order" to PaperMenuTextContract(

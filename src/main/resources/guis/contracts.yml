@@ -7,7 +7,7 @@ defaults:
       tooltip: "<#e8dfd2>Открыть заказы этого источника · открыто: <orders>."
     catalog:
       title: "<#f4d87a><bold>Книга заказов"
-      summary: "<#e8dfd2>Открыто <orders> заказов · можно сдать сейчас: <ready> · нужная партия уже в инвентаре: <with_items>.\nВыберите заказ — карточка покажет точные условия."
+      summary: "<#e8dfd2>Заказов: <orders> · можно сдать сейчас: <ready> · нужная партия уже в инвентаре: <with_items>.\nВыберите заказ — карточка покажет точные условия."
       empty: "<#e8dfd2>Сейчас открытых заказов нет. Обновите книгу немного позже."
       items-missing: "<#ff6b61>Не хватает: <missing> шт."
       page-tooltip: "<#e8dfd2>Перейти к другой странице заказов."
@@ -186,6 +186,12 @@ detail:
     material: GREEN_STAINED_GLASS_PANE
 
 desk:
+  order-unavailable: '<#ff9f0f>Сейчас недоступен: <reason>'
+  top-loading: '<#b8b8b8>Загружаем поставщиков…'
+  top-unavailable: '<#b8b8b8>Топ временно недоступен.'
+  top-empty: '<#b8b8b8>Пока нет подтверждённых сдач.'
+  top-incomplete: '<#ff9f0f>Часть сдач ещё проверяется.'
+  top-entry: '<#ffcd70><place>. <#e6fff3><player> <#b8b8b8>— <#ffcd70><quantity> шт.'
   processing: '<#ff9f0f>Принимаем товары…'
   cursor-not-empty: '<#ff9f0f>Сначала положите предмет с курсора в инвентарь.'
   save-failed: '<#ff9f0f>Не удалось сохранить инвентарь. Попробуйте ещё раз.'
@@ -219,3 +225,24 @@ desk:
     state: '  <state>'
     page: '<#b8b8b8>Страница <current> / <pages>'
     action: '<#8c8c8c>[<#2bba43>▶<#8c8c8c>] <#2bba43>ЛКМ <#b8b8b8>— сдать доступные товары'
+
+weekly-top:
+  title: '<#f4d87a><bold>Топ поставщиков недели'
+  loading: '<#e8dfd2>Загружаем поставщиков недели…'
+  failed: '<#ff6b61>Не удалось загрузить топ. Попробуйте ещё раз.'
+  empty: '<#e8dfd2>Пока нет подтверждённых сдач.'
+  incomplete: '<#ffb277>Часть сдач ещё проверяется.'
+  period: '<#e8dfd2><start>–<end> · страница <page>/<pages>'
+  headers:
+    place: '<#e8dfd2>№'
+    player: '<#e8dfd2>Игрок'
+    quantity: '<#e8dfd2>Сдано, шт.'
+  place: '<#f4d87a><place>'
+  player: '<#ffffff><player>'
+  quantity: '<#f4d87a><quantity>'
+  back: '<#ffffff>‹ К сдаче товаров'
+  back-tooltip: '<#e8dfd2>Вернуться к этому столу контрактов.'
+  refresh: '<#ffffff>Обновить топ'
+  refresh-tooltip: '<#e8dfd2>Показать последние успешные сдачи.'
+  previous: '<#92bed8>Предыдущая страница'
+  next: '<#92bed8>Следующая страница'

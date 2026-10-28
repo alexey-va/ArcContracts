@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.future.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -121,6 +122,25 @@ object ContractsManager {
     fun enabled(): Boolean = configRef.get()?.enabled == true
     fun serverWeeklyBudgetMinor(): Long = configRef.get()?.serverWeeklyBudgetMinor ?: 0L
     fun suspendAdmission() { accepting = false }
+
+    /** Worker-only aggregation, serialized with submissions so an in-flight commit cannot enter the top. */
+    internal fun weeklyLeaderboard(): CompletableFuture<ContractWeeklyLeaderboard> {
+        val currentScope = submissionScope
+        val currentRepo = repo
+        val currentJournal = journalRepo
+        val currentMutex = submissionMutex
+        if (!isAvailable() || currentScope == null || currentRepo == null || currentJournal == null) {
+            return CompletableFuture.failedFuture(IllegalStateException("Contract leaderboard is unavailable"))
+        }
+        return currentScope.future {
+            currentMutex.withLock {
+                check(isAvailable() && repo === currentRepo && journalRepo === currentJournal) {
+                    "Contract leaderboard generation has retired"
+                }
+                ContractWeeklyLeaderboard.calculate(currentRepo.allNow(), currentJournal.allNow(), System.currentTimeMillis())
+            }
+        }
+    }
 
     private var repo: CachedRepository<ResourceContractRecord>? = null
     private var selectionRuntime: ContractSelectionRuntime? = null

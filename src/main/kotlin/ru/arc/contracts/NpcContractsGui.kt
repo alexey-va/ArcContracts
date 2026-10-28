@@ -25,6 +25,7 @@ import java.util.UUID
 object NpcContractsGui {
     private val groupPattern = Regex("[a-z0-9][a-z0-9_-]{2,47}")
     private val asyncGenerations = mutableMapOf<UUID, UUID>()
+    private val INSPECT_ONLY = setOf(ContractBookAvailability.COMPLETED, ContractBookAvailability.PLAYER_CAP, ContractBookAvailability.BUDGET_EXHAUSTED)
 
     private lateinit var contractGuiConfig: Config
 
@@ -162,7 +163,7 @@ object NpcContractsGui {
         pageEntries.forEachIndexed { index, entry ->
             buttons += PaperDialogButton(
                 action("order_$index"),
-                light("${plainName(entry.view)} ›", WHITE),
+                light("${if (entry.availability in INSPECT_ONLY) "[Недоступно] " else ""}${plainName(entry.view)} ›", WHITE),
                 orderTooltip(entry),
                 width = HALF_BUTTON_WIDTH,
             ) { showDetail(player, group, entry.view.contract.id, null) }
@@ -190,7 +191,7 @@ object NpcContractsGui {
                 group,
                 if (entries.isEmpty()) "catalog.empty" else "catalog.summary",
                 if (entries.isEmpty()) "<#e8dfd2>Сейчас открытых заказов нет. Обновите книгу немного позже."
-                else "<#e8dfd2>Открыто <orders> заказов · можно сдать сейчас: <ready> · нужная партия уже в инвентаре: <with_items>.\nВыберите заказ — карточка покажет точные условия.",
+                else "<#e8dfd2>Заказов: <orders> · можно сдать сейчас: <ready> · нужная партия уже в инвентаре: <with_items>.\nВыберите заказ — карточка покажет точные условия.",
                 "orders" to light(entries.size.toString(), WHITE),
                 "ready" to light(ready.toString(), SUCCESS_COLOR),
                 "with_items" to light(withItems.toString(), TRADE_COLOR),
@@ -254,6 +255,8 @@ object NpcContractsGui {
             light("Цена: ", BODY_COLOR).append(price(entry.view.playerPayoutMinorPerUnit)),
             null,
             status,
+            light("Сдано всего: ${entry.view.contract.acceptedQuantity} / ${entry.view.contract.targetQuantity} шт.", BODY_COLOR),
+            light("Вы сдали: ${entry.view.playerAcceptedQuantity} шт.", BODY_COLOR),
             light("Приём до: ${formatDeadline(entry.view.contract.windowEndsAt)}", PAGE_COLOR),
         )
     }

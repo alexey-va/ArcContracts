@@ -59,6 +59,7 @@ class ContractsMenuSchemaTest : StringSpec({
         layout.slot("sell").index shouldBe 4
         layout.slot("previous").index shouldBe 45
         layout.slot("next").index shouldBe 48
+        layout.slot("weekly-top").index shouldBe 49
         layout.backgroundTemplate shouldBe MenuTemplateId.of("background")
         layout.pagination shouldBe null
 
@@ -81,12 +82,15 @@ class ContractsMenuSchemaTest : StringSpec({
                 "name" to Component.text("Любая сырая рыба"),
                 "price" to Component.text("1.20"),
                 "remaining" to Component.text("64"),
+                "accepted-total" to Component.text("128"),
+                "target" to Component.text("256"),
+                "personal-accepted" to Component.text("16"),
                 "state" to Component.text("Положите товар в пустой ряд"),
                 "base" to Component.text("1.20"),
                 "growth" to Component.text("+25%"),
                 "rank" to Component.text("+0%"),
                 "accepted" to Component.text("Треска, лосось, тропическая рыба и иглобрюх"),
-            )),
+            ), repeats = mapOf("weekly-leaders" to listOf(mapOf("line" to Component.text("Пока нет поставщиков."))))),
         ).withType(Material.COD)
         item.type shouldBe Material.COD
         item.itemMeta.displayName()!!.decoration(TextDecoration.ITALIC) shouldBe TextDecoration.State.FALSE
@@ -95,6 +99,8 @@ class ContractsMenuSchemaTest : StringSpec({
         text.contains("1.20 💰") shouldBe true
         text.contains("64 шт.") shouldBe true
         text.contains("+25% от базовой") shouldBe true
+        text.contains("Сдано всего: 128 / 256 шт.") shouldBe true
+        text.contains("Пока нет поставщиков.") shouldBe true
     }
 })
 

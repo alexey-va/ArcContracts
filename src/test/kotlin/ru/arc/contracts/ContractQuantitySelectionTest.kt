@@ -28,11 +28,14 @@ class ContractQuantitySelectionTest : StringSpec({
         ContractBookAvailability.resolve(view(playerRemaining = 0), 64, true) shouldBe ContractBookAvailability.PLAYER_CAP
     }
 
-    "catalog keeps only orders the player can act on" {
+    "catalog retains completed and exhausted selected orders for inspection" {
         ContractBookAvailability.entries.filter { it.isCatalogVisible() }.toSet() shouldBe setOf(
             ContractBookAvailability.READY,
             ContractBookAvailability.ITEMS_MISSING,
             ContractBookAvailability.ORIGIN_REQUIRED,
+            ContractBookAvailability.COMPLETED,
+            ContractBookAvailability.PLAYER_CAP,
+            ContractBookAvailability.BUDGET_EXHAUSTED,
         )
     }
 

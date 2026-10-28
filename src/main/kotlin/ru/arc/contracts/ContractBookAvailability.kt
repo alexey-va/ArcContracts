@@ -13,7 +13,10 @@ enum class ContractBookAvailability(val messageKey: String, val fallback: String
     UNAVAILABLE("unavailable", "<yellow>Сдача сейчас недоступна. Обновите книгу заказов"),
     ;
 
-    fun isCatalogVisible(): Boolean = this == READY || this == ITEMS_MISSING || this == ORIGIN_REQUIRED
+    fun isCatalogVisible(): Boolean = when (this) {
+        READY, ITEMS_MISSING, ORIGIN_REQUIRED, COMPLETED, PLAYER_CAP, BUDGET_EXHAUSTED -> true
+        else -> false
+    }
 
     companion object {
         fun resolve(

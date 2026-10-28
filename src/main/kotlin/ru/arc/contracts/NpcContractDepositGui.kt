@@ -21,6 +21,7 @@ import ru.arc.paper.menu.PaperCloudStorageButton
 import ru.arc.paper.menu.PaperCloudStorageContent
 import ru.arc.paper.menu.PaperCloudStorageSession
 import ru.arc.paper.menu.PaperMenuItemRenderContext
+import ru.arc.paper.player.PaperOfflinePlayerData
 import ru.arc.util.TextUtils
 import java.util.UUID
 
@@ -35,6 +36,9 @@ object NpcContractDepositGui : Listener {
         val menu = ContractsMenuSchema.CONTRACT_DESKS.getValue(rows)
         var page = 0
         var result: SaleResult? = null
+        var weeklyTop: ContractWeeklyLeaderboardGui.Loaded? = null
+        var topLoading = false
+        var topFailed = false
     }
     private data class SaleResult(
         val quantity: Long,
@@ -44,13 +48,18 @@ object NpcContractDepositGui : Listener {
         val review: Boolean,
         val rejection: Component?,
     )
-    fun start(configuration: ru.arc.config.Config = ConfigManager.of(ContractsRuntime.legacyDataPath, "guis/contracts.yml")) {
+    fun start(
+        configuration: ru.arc.config.Config = ConfigManager.of(ContractsRuntime.legacyDataPath, "guis/contracts.yml"),
+        offlinePlayers: PaperOfflinePlayerData = PaperOfflinePlayerData.capture(Bukkit.getServer()),
+    ) {
         config = configuration
         tasks = LifecycleTaskScope()
+        ContractWeeklyLeaderboardGui.start(configuration, offlinePlayers)
         Bukkit.getPluginManager().registerEvents(this, ContractsRuntime.plugin)
-        tasks?.runTimer(100, 100) { sessions.values.toList().forEach(::render) }
+        tasks?.runTimer(100, 100) { sessions.values.toList().forEach { render(it); refreshTop(it) } }
     }
     fun shutdown() {
+        ContractWeeklyLeaderboardGui.shutdown()
         sessions.values.toList().forEach { it.session.close() }
         tasks?.close()
         tasks = null
@@ -58,14 +67,14 @@ object NpcContractDepositGui : Listener {
         sessions.clear()
         processing.clear()
     }
-    fun open(player: Player, group: String) {
+    fun open(player: Player, group: String, requestedPage: Int = 0) {
         if (!ContractOriginGate.canSubmit(player, group)) return
         if (player.uniqueId in processing) { feedback(player, "processing", "<#ff9f0f>Принимаем товары…"); return }
         sessions[player.uniqueId]?.takeIf { it.group == group && it.session.isOpen }?.let { render(it); return }
         val orders = views(player, group)
         val geometry = ContractDeskLayout.calculate(orders.size)
         val storage = ContractDeskStorage(player, group, { offered -> matchingOrders(offered, views(player, group)).isNotEmpty() })
-        val desk = Desk(player, group, storage, geometry.rows)
+        val desk = Desk(player, group, storage, geometry.rows).apply { page = requestedPage }
         ContractsMenus.closeDialog(player)
         desk.session = ContractsMenus.openStorage(player, desk.menu, ContractsMenuSchema.CONTRACT_DEPOSIT, storage,
             PaperCloudStorageContent(
@@ -75,6 +84,13 @@ object NpcContractDepositGui : Listener {
                     MenuElementId.of("sell") to PaperCloudStorageButton(sellButton(desk, orders, geometry.pageCount)) { sell(desk) },
                     MenuElementId.of("previous") to PaperCloudStorageButton(ContractsMenus.item(desk.menu, "previous")) { turnPage(desk, -1) },
                     MenuElementId.of("next") to PaperCloudStorageButton(ContractsMenus.item(desk.menu, "next")) { turnPage(desk, 1) },
+                    MenuElementId.of("weekly-top") to PaperCloudStorageButton(ContractsMenus.item(desk.menu, "weekly-top")) {
+                        if (desk.storage.pending) feedback(player, "processing", "<#ff9f0f>Принимаем товары…")
+                        else {
+                            desk.session.close()
+                            ContractWeeklyLeaderboardGui.open(player, group, desk.page)
+                        }
+                    },
                 ),
                 onFailure = { viewer, _ ->
                     if (storage.pending) feedback(viewer, "processing", "<#ff9f0f>Принимаем товары…")
@@ -83,6 +99,7 @@ object NpcContractDepositGui : Listener {
             ))
         sessions[player.uniqueId] = desk
         render(desk)
+        refreshTop(desk)
     }
     private fun views(player: Player, group: String) = ContractsManager.currentPlayerViews(
         player.uniqueId, group, policy = ContractRankPolicyResolver.resolve(player),
@@ -90,7 +107,30 @@ object NpcContractDepositGui : Listener {
     private fun turnPage(desk: Desk, step: Int) {
         if (desk.storage.pending) return
         desk.page += step
+        desk.weeklyTop = null
+        desk.topFailed = false
         render(desk)
+        refreshTop(desk)
+    }
+
+    private fun refreshTop(desk: Desk) {
+        val scope = tasks ?: return
+        if (!desk.session.isOpen || desk.topLoading) return
+        val orders = views(desk.player, desk.group)
+        val geometry = ContractDeskLayout.calculate(orders.size, desk.page)
+        val page = geometry.page
+        val contractIds = geometry.visibleOrderRange.map { orders[it].contract.id }
+        desk.topLoading = true
+        ContractWeeklyLeaderboardGui.load(contractIds = contractIds).whenCompleteSync(scope) { loaded, failure ->
+            if (sessions[desk.player.uniqueId] !== desk || !desk.session.isOpen) return@whenCompleteSync
+            desk.topLoading = false
+            if (page != desk.page) { refreshTop(desk); return@whenCompleteSync }
+            val wasFailed = desk.topFailed
+            desk.topFailed = failure != null
+            desk.weeklyTop = if (failure == null) loaded else null
+            if (failure != null && !wasFailed) ContractsRuntime.logWarning("Contract desk leaderboard failed for ${desk.player.uniqueId}", failure)
+            render(desk)
+        }
     }
     private fun render(desk: Desk) {
         if (!desk.session.isOpen) return
@@ -113,7 +153,20 @@ object NpcContractDepositGui : Listener {
             val market = ContractMarketPricing.unitPayoutMinor(definition, view.pricingSupply, view.pricingAt)
             val availability = ContractBookAvailability.resolve(view, view.maxSubmissionQuantity,
                 ContractOriginGate.canSubmit(desk.player, desk.group))
-            inventory.setItem(slot, ContractsMenus.item("contract-desk-order", context(
+            val ready = availability == ContractBookAvailability.READY
+            val top = desk.weeklyTop?.takeIf {
+                it.leaderboard.weekStartsAt == ContractRotation.weekStart(System.currentTimeMillis())
+            }
+            val leaders = top?.leaderboard?.byContract?.get(view.contract.id).orEmpty().take(3)
+            val topLines = if (top == null) listOf(if (desk.topFailed)
+                text("top-unavailable", "<#b8b8b8>Топ временно недоступен.")
+                else text("top-loading", "<#b8b8b8>Загружаем поставщиков…"))
+            else if (leaders.isEmpty()) listOf(text("top-empty", "<#b8b8b8>Пока нет подтверждённых сдач."))
+            else leaders.mapIndexed { index, leader -> text("top-entry", "<#ffcd70><place>. <#e6fff3><player> <#b8b8b8>— <#ffcd70><quantity> шт.",
+                "place" to Component.text(index + 1), "player" to top.name(leader), "quantity" to Component.text(leader.quantity)) }
+            val topWarning = if (top != null && view.contract.id in top.leaderboard.incompleteContracts)
+                listOf(text("top-incomplete", "<#ff9f0f>Часть сдач ещё проверяется.")) else emptyList()
+            inventory.setItem(slot, ContractsMenus.item("contract-desk-order", PaperMenuItemRenderContext(values = mapOf(
                 "name" to Component.text(view.contract.displayName),
                 "accepted" to if (view.contract.itemKey == PaperContractItems.ANY_RAW_FISH)
                     text("fish", "<#e6fff3>Любая сырая рыба: треска, лосось, тропическая, иглобрюх.")
@@ -123,10 +176,15 @@ object NpcContractDepositGui : Listener {
                 "growth" to Component.text(contractPriceGrowth(definition.payoutMinorPerUnit, market)),
                 "rank" to Component.text(contractPriceGrowth(10_000L, view.payoutBasisPoints.toLong())),
                 "remaining" to Component.text(view.playerRemainingQuantity),
-                "state" to if (availability == ContractBookAvailability.READY)
+                "accepted-total" to Component.text(view.contract.acceptedQuantity),
+                "target" to Component.text(view.contract.targetQuantity),
+                "personal-accepted" to Component.text(view.playerAcceptedQuantity),
+                "state" to if (ready)
                     text("accepting", "<#2bba43>Положите товар в ячейки справа и нажмите «Продать».")
-                    else TextUtils.mm(config.string("defaults.availability.${availability.messageKey}", availability.fallback)),
-            )).withType(material))
+                    else text("order-unavailable", "<#ff9f0f>Сейчас недоступен: <reason>", "reason" to
+                        TextUtils.mm(config.string("defaults.availability.${availability.messageKey}", availability.fallback))),
+            ), repeats = mapOf("weekly-leaders" to (topLines + topWarning).map { mapOf("line" to it) })))
+                .withType(if (ready) material else Material.BARRIER))
         }
         inventory.setItem(layout.slot("sell").index, sellButton(desk, orders, pages))
         inventory.setItem(layout.slot("previous").index, ContractsMenus.item(desk.menu, "previous"))
@@ -255,6 +313,7 @@ object NpcContractDepositGui : Listener {
                 else if (rejection != null) desk.player.sendActionBar(rejection)
                 else if (desk.storage.snapshot().any { it != null }) feedback(desk.player, "not-accepted", "<#ff9f0f>Остаток не принят: проверьте лимиты заказов.")
                 if (desk.session.isOpen) render(desk) else returnItems(desk)
+                if (desk.session.isOpen) refreshTop(desk)
             }
         }
         fun submitNext(accepted: Long, payout: Long) {
@@ -315,7 +374,6 @@ object NpcContractDepositGui : Listener {
             "<#ff9f0f>Инвентарь полон. Остаток сохранён у этого NPC — заберите его при следующем открытии."))
     }
     private fun feedback(player: Player, key: String, fallback: String) = player.sendActionBar(text(key, fallback))
-    private fun context(vararg values: Pair<String, Component>) = PaperMenuItemRenderContext(values = mapOf(*values))
     private fun text(key: String, fallback: String, vararg values: Pair<String, Component>): Component =
         TextUtils.mm(config.string("desk.$key", fallback), TagResolver.resolver(values.map { (name, value) -> Placeholder.component(name, value) }))
 }
