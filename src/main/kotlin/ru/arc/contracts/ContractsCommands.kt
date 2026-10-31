@@ -59,7 +59,7 @@ internal class ContractsCommands(private val services: ServicesManager) {
             )
             val weeklyBudget = ContractsManager.serverWeeklyBudgetMinor()
             sender.sendMessage(
-                TextUtils.mm("<dark_gray>Недельный бюджет: <gray>${formatContractMoney(weeklyBudget)} <white>💰</white>"),
+                TextUtils.mm("<dark_gray>Недельный бюджет: <gray>${formatContractMoney(weeklyBudget)}<white>💰</white>"),
             )
             return
         }
@@ -68,7 +68,7 @@ internal class ContractsCommands(private val services: ServicesManager) {
                 TextUtils.mm(
                     "<yellow>${escape(view.displayName)} <dark_gray>[${status(view.status)}]\n" +
                         "<gray>  ${view.itemKey}: <white>${view.remainingQuantity}/${view.targetQuantity}" +
-                        " <gray>· <green>${formatContractMoney(view.payoutMinorPerUnit)} <white>💰</white><gray>/шт." +
+                        " <gray>· <green>${formatContractMoney(view.payoutMinorPerUnit)}<white>💰</white><gray>/шт." +
                         " <gray>· до <white>${formatTime(view.windowEndsAt)}",
                 ),
             )
@@ -205,7 +205,7 @@ internal class ContractsCommands(private val services: ServicesManager) {
         TextUtils.mm(
             when (outcome) {
                 is SeasonMoneyActionOutcome.Committed ->
-                    "<green>Операция учтена: <white>${formatContractMoney(outcome.receipt.amountMinor)} <white>💰</white>"
+                    "<green>Операция учтена: <white>${formatContractMoney(outcome.receipt.amountMinor)}<white>💰</white>"
                 is SeasonMoneyActionOutcome.Duplicate -> "<yellow>Эта операция уже учтена; повторного списания не было."
                 is SeasonMoneyActionOutcome.Rejected -> "<yellow>Операция отклонена: <gray>${seasonRejection(outcome.reason)}"
                 is SeasonMoneyActionOutcome.Cancelled -> "<yellow>Списание не выполнено; баланс не изменился."

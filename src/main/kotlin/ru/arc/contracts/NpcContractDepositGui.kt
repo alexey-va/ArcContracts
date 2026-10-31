@@ -219,8 +219,8 @@ object NpcContractDepositGui : Listener {
             result?.review == true -> text("button.review", "<#c42323>Сдача на проверке")
             result != null && result.quantity > 0 -> text(
                 if (offered.isEmpty()) "button.sold" else "button.partial",
-                if (offered.isEmpty()) "<#2bba43>Сдано <quantity> шт. +<price> <white>💰</white>"
-                else "<#ff9f0f>Сдано частично +<price> <white>💰</white>",
+                if (offered.isEmpty()) "<#2bba43>Сдано <quantity> шт. +<price><white>💰</white>"
+                else "<#ff9f0f>Сдано частично +<price><white>💰</white>",
                 "quantity" to Component.text(result.quantity), "price" to Component.text(formatContractMoney(result.payout)),
             )
             result?.rejection != null -> text("button.rejected", "<#ff9f0f>Не удалось сдать")
@@ -234,7 +234,7 @@ object NpcContractDepositGui : Listener {
             groups += listOf(text("processing", "<#ff9f0f>Принимаем товары…"))
         } else {
             if (result != null && result.quantity > 0) {
-                groups += listOf(text("success", "<#2bba43>Принято <quantity> шт. +<price> <white>💰</white>",
+                groups += listOf(text("success", "<#2bba43>Принято <quantity> шт. +<price><white>💰</white>",
                     "quantity" to Component.text(result.quantity), "price" to Component.text(formatContractMoney(result.payout))))
                 groups += result.items.map { (material, amount) ->
                     itemLine("accepted", "<#8c8c8c>• <#b8b8b8>Сдано: <#e6fff3><item> <#92bed8>× <quantity>", material, amount)
@@ -307,7 +307,7 @@ object NpcContractDepositGui : Listener {
             processing -= desk.player.uniqueId
             desk.result = SaleResult(accepted, payout, acceptedItems.toMap(), desk.storage.snapshot(), review, rejection)
             if (desk.player.isOnline) {
-                if (accepted > 0) desk.player.sendMessage(text("success", "<#2bba43>Принято <quantity> шт. +<price> <white>💰</white>",
+                if (accepted > 0) desk.player.sendMessage(text("success", "<#2bba43>Принято <quantity> шт. +<price><white>💰</white>",
                     "quantity" to Component.text(accepted), "price" to Component.text(formatContractMoney(payout))))
                 if (review) feedback(desk.player, "review", "<#c42323>Сдача остановлена для проверки. Не повторяйте её до разбора администратором.")
                 else if (rejection != null) desk.player.sendActionBar(rejection)

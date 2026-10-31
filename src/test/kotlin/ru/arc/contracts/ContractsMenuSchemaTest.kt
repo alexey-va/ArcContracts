@@ -96,7 +96,7 @@ class ContractsMenuSchemaTest : StringSpec({
         item.itemMeta.displayName()!!.decoration(TextDecoration.ITALIC) shouldBe TextDecoration.State.FALSE
         item.itemMeta.lore()!!.forEach { row -> row.decoration(TextDecoration.ITALIC) shouldBe TextDecoration.State.FALSE }
         val text = item.itemMeta.lore()!!.joinToString("\n") { PlainTextComponentSerializer.plainText().serialize(it) }
-        text.contains("1.20 💰") shouldBe true
+        text.contains("1.20💰") shouldBe true
         text.contains("64 шт.") shouldBe true
         text.contains("+25% от базовой") shouldBe true
         text.contains("Сдано всего: 128 / 256 шт.") shouldBe true

@@ -36,7 +36,7 @@ defaults:
       tracked: "<#9bd48d>✔ Отслеживается"
       track: "<#ffffff>○ Отслеживать"
       track-unavailable: "<#ffffff>[Недоступно] Отслеживать"
-      submit: "<#9bd48d>Сдать <quantity> шт. · <payout> <#ffffff>💰"
+      submit: "<#9bd48d>Сдать <quantity> шт. · <payout><#ffffff>💰"
     labels:
       inventory: "<#e8dfd2>В инвентаре"
       batch: "<#e8dfd2>Можно сдать"
@@ -56,7 +56,7 @@ defaults:
       saved: "<#9bd48d>Цель отслеживания обновлена."
       failed: "<#ff6b61>Не удалось сохранить цель. Попробуйте ещё раз."
     result:
-      committed: "<#9bd48d>Сдано <quantity> шт. · получено <payout> <#ffffff>💰"
+      committed: "<#9bd48d>Сдано <quantity> шт. · получено <payout><#ffffff>💰"
       not-committed: "<#ff6b61>Заказ не принят. Условия и инвентарь обновлены."
       review-title: "<#ff6b61><bold>Операция на проверке"
       review-body: "<#ff6b61>Не повторяйте сдачу. Администратор должен проверить состояние операции."
@@ -99,7 +99,7 @@ defaults:
     info-heading: "<gold><bold>Общий заказ"
     purpose: "<gray>Ресурсы для поселения."
   messages:
-    receipt: "<green>Сдано {quantity} · Получено {payout} <white>💰</white>"
+    receipt: "<green>Сдано {quantity} · Получено {payout}<white>💰</white>"
     origin-required: "<yellow>Сдать заказ можно только у конторщика на спавне."
     unavailable: "<yellow>Этот заказ больше недоступен. Обновите книгу заказов."
     rejections: { }
@@ -207,7 +207,7 @@ desk:
   empty: '<#ff9f0f>Сейчас открытых заказов нет.'
   unavailable: '<#ff9f0f>Снова обратитесь к NPC, чтобы сдать товары.'
   return-full: '<#ff9f0f>Инвентарь полон. Остаток сохранён у этого NPC — заберите его при следующем открытии.'
-  success: '<#2bba43>Принято <quantity> шт. +<price> <white>💰</white>'
+  success: '<#2bba43>Принято <quantity> шт. +<price><white>💰</white>'
   button:
     empty: '<#2bba43>Положите товары справа'
     sell: '<#2bba43>Продать'
@@ -217,8 +217,8 @@ desk:
     unavailable: '<#ff9f0f>Приём сейчас недоступен. Попробуйте позже.'
     rejected: '<#ff9f0f>Не удалось сдать'
     review: '<#c42323>Сдача на проверке'
-    sold: '<#2bba43>Сдано <quantity> шт. +<price> <white>💰</white>'
-    partial: '<#ff9f0f>Сдано частично +<price> <white>💰</white>'
+    sold: '<#2bba43>Сдано <quantity> шт. +<price><white>💰</white>'
+    partial: '<#ff9f0f>Сдано частично +<price><white>💰</white>'
     accepted: '<#8c8c8c>• <#b8b8b8>Сдано: <#e6fff3><item> <#92bed8>× <quantity>'
     offered: '<#8c8c8c>• <#b8b8b8>К сдаче: <#e6fff3><item> <#92bed8>× <quantity>'
     remaining: '<#8c8c8c>• <#b8b8b8>Осталось: <#e6fff3><item> <#92bed8>× <quantity>'

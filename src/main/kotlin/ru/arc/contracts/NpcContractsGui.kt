@@ -426,7 +426,7 @@ object NpcContractsGui {
                 dialogText(
                     group,
                     "buttons.submit",
-                    "<#9bd48d>Сдать <quantity> шт. · <payout> <#ffffff>💰",
+                    "<#9bd48d>Сдать <quantity> шт. · <payout><#ffffff>💰",
                     "quantity" to light(quote.quantity.toString(), SUCCESS_COLOR),
                     "payout" to light(formatContractMoney(quote.payoutMinor), TRADE_COLOR),
                 ),
@@ -574,7 +574,7 @@ object NpcContractsGui {
                     dialogText(
                         group,
                         "result.committed",
-                        "<#9bd48d>Сдано <quantity> шт. · получено <payout> <#ffffff>💰",
+                        "<#9bd48d>Сдано <quantity> шт. · получено <payout><#ffffff>💰",
                         "quantity" to light(outcome.receipt.quantity.toString(), SUCCESS_COLOR),
                         "payout" to light(formatContractMoney(outcome.receipt.payoutMinor), TRADE_COLOR),
                     ),
@@ -699,7 +699,7 @@ object NpcContractsGui {
         Component.text(value, color).decoration(TextDecoration.ITALIC, false)
 
     private fun price(amountMinor: Long): Component =
-        light(formatContractMoney(amountMinor), TRADE_COLOR).append(light(" 💰", WHITE))
+        light(formatContractMoney(amountMinor), TRADE_COLOR).append(light("💰", WHITE))
 
     private fun sourceColor(group: String): TextColor = when (group) {
         "bank_orders" -> TRADE_COLOR
@@ -769,7 +769,7 @@ object ContractPlayerMessages {
                     config,
                     "messages.committed",
                     group,
-                    "<gold><speaker> <dark_gray>» <green>Заказ принят. <gray>Сдано <white><quantity><gray>, выплата <gold><payout> <white>💰</white><gray>.",
+                    "<gold><speaker> <dark_gray>» <green>Заказ принят. <gray>Сдано <white><quantity><gray>, выплата <gold><payout><white>💰</white><gray>.",
                     "quantity" to outcome.receipt.quantity,
                     "payout" to formatContractMoney(outcome.receipt.payoutMinor),
                 )

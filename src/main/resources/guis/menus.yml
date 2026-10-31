@@ -87,8 +87,8 @@ menus:
         - '<italic:false>'
         - '<italic:false><#e6fff3><accepted>'
         - '<italic:false>'
-        - '<italic:false><#b8b8b8>За штуку: <#ffcd70><price> <white>💰</white>'
-        - '<italic:false><#b8b8b8>Базовая цена: <white><base> <white>💰</white>'
+        - '<italic:false><#b8b8b8>За штуку: <#ffcd70><price><white>💰</white>'
+        - '<italic:false><#b8b8b8>Базовая цена: <white><base><white>💰</white>'
         - '<italic:false><#b8b8b8>Изменение цены: <growth> от базовой'
         - '<italic:false><#b8b8b8>Бонус ранга: <white><rank>'
         - '<italic:false><#b8b8b8>Ваш остаток: <white><remaining> шт.'
@@ -161,7 +161,7 @@ menus:
         - ''
         - '<gray>Подходящих предметов: <white><available>'
         - '<gray>Партия сейчас: <white><can-submit-quantity>'
-        - '<gray>За партию примерно: <gold><batch-payout> <white>💰</white>'
+        - '<gray>За партию примерно: <gold><batch-payout><white>💰</white>'
         - '<gray>Приём до: <white><ends-at>'
         - ''
         - '<action>'
@@ -233,10 +233,10 @@ menus:
         - '<gray>Объём общий для всего сервера.'
     contracts-detail-payout:
       material: GOLD_NUGGET
-      name: '<gold><bold>За партию:</bold> <payout> <white>💰</white>'
+      name: '<gold><bold>За партию:</bold> <payout><white>💰</white>'
       lore:
         - ''
-        - '<gray>Следующий предмет: <gold><per-unit> <white>💰</white>'
+        - '<gray>Следующий предмет: <gold><per-unit><white>💰</white>'
         - '<gray>Надбавка ранга: <gold>+<payout-bonus>%'
         - ''
         - '<gray>Выплата рассчитана за всю партию.'
@@ -265,7 +265,7 @@ menus:
       lore:
         - ''
         - { text: '<gray>Будет принято: <white><selected>', when: can-submit }
-        - { text: '<gray>Выплата: <gold><payout> <white>💰</white>', when: can-submit }
+        - { text: '<gray>Выплата: <gold><payout><white>💰</white>', when: can-submit }
         - { text: '', when: can-submit }
         - { text: '<green>[▶] ЛКМ — сдать ресурсы', when: can-submit }
         - { text: '<red>Сдача недоступна', unless: can-submit }
