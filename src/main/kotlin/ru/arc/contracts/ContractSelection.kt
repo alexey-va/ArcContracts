@@ -96,8 +96,9 @@ object ContractSelectionPlanner {
         return ContractSelectionPlan(week, budgetMinor, selected, reasons).validated()
     }
 
-    private fun stableRotation(id: String, week: Long): String = java.security.MessageDigest.getInstance("SHA-256")
-        .digest("$week:$id".toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    private fun stableRotation(id: String, week: Long): String = java.util.HexFormat.of().formatHex(
+        java.security.MessageDigest.getInstance("SHA-256").digest("$week:$id".toByteArray(Charsets.UTF_8)),
+    )
 }
 
 interface ContractSelectionPersistence {

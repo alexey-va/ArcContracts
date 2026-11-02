@@ -73,6 +73,20 @@ class ContractSelectionTest : StringSpec({
         first.orders.sumOf { it.budgetMinor } shouldBe 2000L
         first.orders.all { it.payoutMinorPerUnit == 10L && it.perPlayerQuantityCap == 50L } shouldBe true
     }
+    "weekly rotation retains the existing lowercase SHA-256 ranking" {
+        val catalog = (0 until 24).map { order("forge_${it.toString().padStart(2, '0')}") }
+        val expected = listOf(
+            listOf("forge_10", "forge_22", "forge_19", "forge_05", "forge_00", "forge_15", "forge_17", "forge_02", "forge_13"),
+            listOf("forge_16", "forge_06", "forge_14", "forge_19", "forge_10", "forge_18", "forge_03", "forge_07", "forge_13"),
+        )
+        expected.forEachIndexed { offset, ids ->
+            val plan = ContractSelectionPlanner.plan(
+                week + offset * ContractRotation.WEEK_MILLIS, catalog.reversed(), policy.copy(perGroup = 9),
+                9000, emptyList(), emptyList(),
+            )
+            plan.orders.map { it.id } shouldBe ids
+        }
+    }
     "next week prioritizes candidates absent from the previous selection" {
         val first = ContractSelectionPlanner.plan(week, candidates, policy, 2000, emptyList(), emptyList())
         val next = ContractSelectionPlanner.plan(week + ContractRotation.WEEK_MILLIS, candidates, policy, 2000, listOf(first), emptyList())
