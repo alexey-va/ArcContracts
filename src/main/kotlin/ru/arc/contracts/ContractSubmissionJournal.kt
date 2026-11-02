@@ -880,14 +880,64 @@ data class ContractSubmissionJournalSummary(
 object ContractSubmissionJournalAudit {
     const val MAX_NETWORK_RECORDS = 4_096
 
+    /** Revalidates replacements, including same-revision Redis snapshots, before publishing any audit. */
+    class Cache {
+        private data class ValidatedRecord(
+            val record: ContractSubmissionJournalRecord,
+            val itemPayloads: List<EscrowedItemPayload>,
+        )
+
+        private var validatedRecords = emptyMap<String, ValidatedRecord>()
+
+        @Synchronized
+        fun summarize(
+            records: List<ContractSubmissionJournalRecord>,
+            now: Long,
+            available: Boolean = true,
+        ): ContractSubmissionJournalSummary {
+            validateInput(records, now)
+            val next = HashMap<String, ValidatedRecord>(records.size)
+            val valid = records.map { record ->
+                val previous = validatedRecords[record.submissionId]
+                val checked = if (previous != null && previous.record === record && previous.itemPayloads == record.itemPayloads) {
+                    previous
+                } else {
+                    // The record's other fields are immutable; detach its only collection to detect in-place changes.
+                    ValidatedRecord(record.validated(), record.itemPayloads.toList())
+                }
+                next[record.submissionId] = checked
+                checked.record
+            }
+            val summary = summarizeValidated(valid, now, available)
+            validatedRecords = next
+            return summary
+        }
+
+        @Synchronized
+        fun clear() {
+            validatedRecords = emptyMap()
+        }
+    }
+
     fun summarize(
         records: List<ContractSubmissionJournalRecord>,
         now: Long,
         available: Boolean = true,
     ): ContractSubmissionJournalSummary {
+        validateInput(records, now)
+        return summarizeValidated(records.map { it.validated() }, now, available)
+    }
+
+    private fun validateInput(records: List<ContractSubmissionJournalRecord>, now: Long) {
         require(now >= 0L) { "Journal audit timestamp must be non-negative" }
         require(records.size <= MAX_NETWORK_RECORDS) { "Contract submission journal exceeds its network record limit" }
-        val valid = records.map { it.validated() }
+    }
+
+    private fun summarizeValidated(
+        valid: List<ContractSubmissionJournalRecord>,
+        now: Long,
+        available: Boolean,
+    ): ContractSubmissionJournalSummary {
         require(valid.map { it.submissionId }.toSet().size == valid.size) {
             "Contract submission journal contains duplicate ids"
         }

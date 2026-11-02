@@ -117,6 +117,7 @@ object ContractsManager {
     @Volatile private var readViews = emptyList<RuntimeResourceContractView>()
     @Volatile private var readSummary = emptyMap<String, Any?>()
     @Volatile private var readJournal = ContractSubmissionJournalSummary.unavailable()
+    private val journalAuditCache = ContractSubmissionJournalAudit.Cache()
     private val refreshPending = java.util.concurrent.atomic.AtomicBoolean()
 
     fun enabled(): Boolean = configRef.get()?.enabled == true
@@ -391,6 +392,7 @@ object ContractsManager {
         repo = null
         scope = null
         journalRepo = null
+        journalAuditCache.clear()
         journalScope = null
         submissionScope = null
         submissionCoordinator = null
@@ -1375,7 +1377,7 @@ object ContractsManager {
     /** Worker-only; ready getters never validate or decode persisted item payloads. */
     internal fun refreshReadModels() {
         readViews = calculateRuntimeViews(System.currentTimeMillis())
-        readJournal = journalRepo?.let { ContractSubmissionJournalAudit.summarize(it.allNow(), System.currentTimeMillis()) }
+        readJournal = journalRepo?.let { journalAuditCache.summarize(it.allNow(), System.currentTimeMillis()) }
             ?: ContractSubmissionJournalSummary.unavailable()
         readSummary = calculateSummary()
         publishPreparedMetrics()
